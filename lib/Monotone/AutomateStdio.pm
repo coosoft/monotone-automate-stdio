@@ -3510,9 +3510,9 @@ sub closedown($)
 	# Close off all file descriptors to the mtn subprocess. This should be
 	# enough to cause it to exit gracefully.
 
-	close($this->{mtn_in});
-	close($this->{mtn_out});
-	close($this->{mtn_err});
+	$this->{mtn_in}->close();
+	$this->{mtn_out}->close();
+	$this->{mtn_err}->close();
 
 	# Reap the mtn subprocess and deal with any errors.
 
@@ -4887,6 +4887,7 @@ sub mtn_command_with_options($$$$$$;@)
 
 	}
 	$this->{mtn_in}->print("e\n");
+	$this->{mtn_in}->flush();
 
 	# Attempt to read the output of the command, rethrowing any exception
 	# that does not relate to locked databases.
@@ -5056,7 +5057,7 @@ sub mtn_read_output_format_1($$)
 	    # there is an error.
 
 	    for ($header = "", $colons = $i = 0;
-		 $colons < 4 && sysread($this->{mtn_out}, $header, 1, $i);
+		 $colons < 4 && $this->{mtn_out}->sysread($header, 1, $i);
 		 ++ $i)
 	    {
 		$char = substr($header, $i, 1);
@@ -5107,10 +5108,9 @@ sub mtn_read_output_format_1($$)
 
 	if ($size > 0)
 	{
-	    if (! defined($bytes_read = sysread($this->{mtn_out},
-						$$buffer,
-						$size,
-						$offset)))
+	    if (! defined($bytes_read = $this->{mtn_out}->sysread($$buffer,
+								  $size,
+								  $offset)))
 	    {
 		croak("sysread failed: " . $!);
 	    }
@@ -5256,7 +5256,7 @@ sub mtn_read_output_format_2($$)
 	    # there is an error.
 
 	    for ($header = "", $colons = $i = 0;
-		 $colons < 3 && sysread($this->{mtn_out}, $header, 1, $i);
+		 $colons < 3 && $this->{mtn_out}->sysread($header, 1, $i);
 		 ++ $i)
 	    {
 		$char = substr($header, $i, 1);
@@ -5316,10 +5316,10 @@ sub mtn_read_output_format_2($$)
 
 		# Process the current data chunk.
 
-		if (! defined($bytes_read = sysread($this->{mtn_out},
-						    $$buffer_ref,
-						    $size,
-						    $$offset_ref)))
+		if (! defined($bytes_read =
+			      $this->{mtn_out}->sysread($$buffer_ref,
+							$size,
+							$$offset_ref)))
 		{
 		    croak("sysread failed: " . $!);
 		}
@@ -5367,7 +5367,7 @@ sub mtn_read_output_format_2($$)
 
 	    # Process the last message.
 
-	    if (! sysread($this->{mtn_out}, $err_code, 1))
+	    if (! $this->{mtn_out}->sysread($err_code, 1))
 	    {
 		croak("sysread failed: " . $!);
 	    }
@@ -5618,7 +5618,7 @@ sub startup($)
 	    while ($char ne "\n" || $last_char ne "\n")
 	    {
 		$last_char = $char;
-		if (! sysread($this->{mtn_out}, $char, 1))
+		if (! $this->{mtn_out}->sysread($char, 1))
 		{
 		    $header_err = "Cannot get format header";
 		    last;
