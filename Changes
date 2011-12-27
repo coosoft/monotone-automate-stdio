@@ -1,5 +1,10 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+1.01  Sat Jul 2 18:00:00 2011 Anthony Cooper <support@coosoft.plus.com>
+	- Removed tabs in the test script. Forgot to do this before.
+	- Be less stringent about UTF-8 convertion failures.
+	- Now quote versions. Helps with the automated distribution system.
+
 1.00  Sun Apr 17 19:40:00 2011 Anthony Cooper <support@coosoft.plus.com>
 	- For STRING_KEY_VALUE parsing I now pass the offset of the relevant RE
 	  subexpression as an extra argument to get_quoted_value() rather than
