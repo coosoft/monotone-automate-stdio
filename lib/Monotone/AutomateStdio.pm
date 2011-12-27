@@ -144,7 +144,8 @@ use constant OPTIONAL_HEX_ID   => 0x010;  # As HEX_ID but also [].
 use constant STRING            => 0x020;  # Quoted string, possibly escaped.
 use constant STRING_AND_HEX_ID => 0x040;  # E.g. "fileprop" [ab2 ... 1be].
 use constant STRING_ENUM       => 0x080;  # E.g. "rename_source".
-use constant STRING_LIST       => 0x100;  # E.g. "..." "...", possibly escaped.
+use constant STRING_KEY_VALUE  => 0x100;  # Quoted key and value (STRING).
+use constant STRING_LIST       => 0x200;  # E.g. "..." "...", possibly escaped.
 
 # Private structures for managing inside-out key caching style objects.
 
@@ -227,7 +228,7 @@ my %get_attributes_keys = ("attr"           => STRING_LIST,
 			   "format_version" => STRING_ENUM,
 			   "state"          => STRING_ENUM);
 my %get_db_variables_keys = ("domain" => STRING,
-			     "entry"  => NON_UNIQUE | STRING_LIST);
+			     "entry"  => NON_UNIQUE | STRING_KEY_VALUE);
 my %get_extended_manifest_of_keys = ("attr"         => NON_UNIQUE
 				                           | STRING_LIST,
 				     "attr_mark"    => NON_UNIQUE
@@ -3586,7 +3587,8 @@ sub closedown($)
 
 	}
 
-	$this->{poll} = undef;
+	$this->{poll_out} = undef;
+	$this->{poll_err} = undef;
 	$this->{mtn_pid} = 0;
 
     }
@@ -4618,6 +4620,15 @@ sub parse_kv_record($$$$;$)
 	    {
 		$value = $1;
 	    }
+	    elsif ($type & STRING_KEY_VALUE
+		   && $$list[$i] =~ m/^ *[a-z_]+ \"([^\"]+)\" (\".*)$/)
+	    {
+		my $string;
+		$value = [$1];
+		local $$list[$i] = $2;
+		get_quoted_value($list, \$i, \$string);
+		push(@$value, unescape($string));
+	    }
 	    elsif ($type & STRING_LIST
 		   && $$list[$i] =~ m/^ *[a-z_]+ \"(.+)\"$/)
 	    {
@@ -4973,6 +4984,23 @@ sub mtn_command_with_options($$$$$$;@)
 
     @$ref = split(/\n/, $$buffer_ref) if (ref($ref) eq "ARRAY");
 
+    # Empty out any data on mtn's STDERR file descriptor. This should always be
+    # empty unless it exits in error, which is picked up elsewhere. However if
+    # a misbehaving mtn subprocess is outputting text on STDERR but not exiting
+    # then there is a possibility that the STDERR pipe will fill up causing mtn
+    # to block. Remember that anything wrong with a command that does not cause
+    # mtn to exit should be reported in the error stream on STDOUT, so we can
+    # just discard any STDERR data read here.
+
+    while ($this->{poll_err}->poll(0) > 0)
+    {
+	my $dummy;
+	if (! $this->{mtn_err}->sysread($dummy, 1024))
+	{
+	    last;
+	}
+    }
+
     return 1;
 
 }
@@ -5042,7 +5070,7 @@ sub mtn_read_output_format_1($$)
 	# Wait here for some data, calling the I/O wait handler every second
 	# whilst we wait.
 
-	while ($this->{poll}->poll($handler_timeout) == 0)
+	while ($this->{poll_out}->poll($handler_timeout) == 0)
 	{
 	    &$handler($self, $handler_data);
 	}
@@ -5241,7 +5269,7 @@ sub mtn_read_output_format_2($$)
 	# Wait here for some data, calling the I/O wait handler every second
 	# whilst we wait.
 
-	while ($this->{poll}->poll($handler_timeout) == 0)
+	while ($this->{poll_out}->poll($handler_timeout) == 0)
 	{
 	    &$handler($self, $handler_data);
 	}
@@ -5559,8 +5587,10 @@ sub startup($)
 	# Ok so reset the command count and setup polling.
 
 	$this->{cmd_cnt} = 0;
-	$this->{poll} = IO::Poll->new();
-	$this->{poll}->mask($this->{mtn_out}, POLLIN | POLLPRI | POLLHUP);
+	$this->{poll_out} = IO::Poll->new();
+	$this->{poll_out}->mask($this->{mtn_out}, POLLIN | POLLPRI | POLLHUP);
+	$this->{poll_err} = IO::Poll->new();
+	$this->{poll_err}->mask($this->{mtn_err}, POLLIN | POLLPRI | POLLHUP);
 
 	# If necessary get the version of the actual application.
 
@@ -5605,7 +5635,7 @@ sub startup($)
 		for (my $i = 0;
 		     $i < 10
 			 && ($poll_result =
-			     $this->{poll}->poll($io_wait_handler_timeout))
+			     $this->{poll_out}->poll($io_wait_handler_timeout))
 			     == 0;
 		     ++ $i)
 		{
@@ -5873,7 +5903,8 @@ sub create_object($)
 	     mtn_in                  => undef,
 	     mtn_out                 => undef,
 	     mtn_err                 => undef,
-	     poll                    => undef,
+	     poll_out                => undef,
+	     poll_err                => undef,
 	     error_msg               => "",
 	     honour_suspend_certs    => 1,
 	     mtn_aif_version         => undef,
