@@ -220,17 +220,17 @@ my %generate_key_keys = ("given_name"       => STRING,
 			 "hash"             => HEX_ID,
 			 "local_name"       => STRING,
 			 "name"             => STRING,
-			 "public_hash"      => HEX_ID,
 			 "private_hash"     => HEX_ID,
-			 "public_location"  => STRING_LIST,
-			 "private_location" => STRING_LIST);
-my %get_attributes_keys = ("attr"           => STRING_LIST,
+			 "private_location" => STRING_LIST,
+			 "public_hash"      => HEX_ID,
+			 "public_location"  => STRING_LIST);
+my %get_attributes_keys = ("attr"           => STRING_KEY_VALUE,
 			   "format_version" => STRING_ENUM,
 			   "state"          => STRING_ENUM);
 my %get_db_variables_keys = ("domain" => STRING,
 			     "entry"  => NON_UNIQUE | STRING_KEY_VALUE);
 my %get_extended_manifest_of_keys = ("attr"         => NON_UNIQUE
-				                           | STRING_LIST,
+				                           | STRING_KEY_VALUE,
 				     "attr_mark"    => NON_UNIQUE
 				                           | STRING_AND_HEX_ID,
 				     "birth"        => HEX_ID,
@@ -241,7 +241,7 @@ my %get_extended_manifest_of_keys = ("attr"         => NON_UNIQUE
 				     "file"         => STRING,
 				     "path_mark"    => HEX_ID,
 				     "size"         => STRING);
-my %get_manifest_of_keys = ("attr"           => NON_UNIQUE | STRING_LIST,
+my %get_manifest_of_keys = ("attr"           => NON_UNIQUE | STRING_KEY_VALUE,
 			    "content"        => HEX_ID,
 			    "dir"            => STRING,
 			    "file"           => STRING,
@@ -438,7 +438,7 @@ sub update($;$);
 sub create_object($);
 sub error_handler_wrapper($);
 sub expand_options($$);
-sub get_quoted_value($$$);
+sub get_quoted_value($$$$);
 sub get_ws_details($$$);
 sub mtn_command($$$$$;@);
 sub mtn_command_with_options($$$$$$;@);
@@ -505,7 +505,7 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
 					MTN_T_STREAM)]);
 our @EXPORT = qw();
 Exporter::export_ok_tags(qw(capabilities severities streams));
-our $VERSION = 0.12;
+our $VERSION = 1.00;
 #
 ##############################################################################
 #
@@ -1595,7 +1595,7 @@ sub get_corresponding_path($$$$$)
     {
 	if ($lines[$i] =~ m/^ *file \"/)
 	{
-	    get_quoted_value(\@lines, \$i, $buffer);
+	    get_quoted_value(\@lines, \$i, 0, $buffer);
 	    $$buffer = unescape($$buffer);
 	}
     }
@@ -4607,7 +4607,7 @@ sub parse_kv_record($$$$;$)
 	    }
 	    elsif ($type & STRING && $$list[$i] =~ m/^ *[a-z_]+ \"/)
 	    {
-		get_quoted_value($list, \$i, \$value);
+		get_quoted_value($list, \$i, 0, \$value);
 		$value = unescape($value);
 	    }
 	    elsif ($type & STRING_AND_HEX_ID
@@ -4625,8 +4625,7 @@ sub parse_kv_record($$$$;$)
 	    {
 		my $string;
 		$value = [$1];
-		local $$list[$i] = $2;
-		get_quoted_value($list, \$i, \$string);
+		get_quoted_value($list, \$i, $-[2], \$string);
 		push(@$value, unescape($string));
 	    }
 	    elsif ($type & STRING_LIST
@@ -6000,6 +5999,9 @@ sub expand_options($$)
 #                            encountered). It is updated with the index of the
 #                            line containing the closing quote at the end of
 #                            the line.
+#                  $offset : The offset within the first line, specified by
+#                            $index, where this routine should start searching
+#                            for the opening quote.
 #                  $buffer : A reference to a buffer that is to contain the
 #                            contents of the quoted string.
 #
@@ -6007,14 +6009,15 @@ sub expand_options($$)
 
 
 
-sub get_quoted_value($$$)
+sub get_quoted_value($$$$)
 {
 
-    my ($list, $index, $buffer) = @_;
+    my ($list, $index, $offset, $buffer) = @_;
 
     # Deal with multiple lines.
 
-    $$buffer = substr($$list[$$index], index($$list[$$index], "\"") + 1);
+    $$buffer =
+	substr($$list[$$index], index($$list[$$index], "\"", $offset) + 1);
     if ($$buffer !~ m/$closing_quote_re/)
     {
 	do
