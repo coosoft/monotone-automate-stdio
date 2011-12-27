@@ -7,3 +7,4 @@ lib/Monotone/AutomateStdio.pm
 lib/Monotone/AutomateStdio.pod
 mtn-tester
 t/Monotone-AutomateStdio.t
+META.yml                                 Module meta-data (added by MakeMaker)
