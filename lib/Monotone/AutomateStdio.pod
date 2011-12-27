@@ -6,7 +6,7 @@ Monotone::AutomateStdio - Perl interface to Monotone via automate stdio
 
 =head1 VERSION
 
-0.12
+1.00
 
 =head1 SYNOPSIS
 
@@ -36,9 +36,9 @@ $mtn-E<gt>closedown() is called.
 All automate commands have been implemented in this class except for the
 `stdio' command, hopefully the reason is obvious :-). Versions of Monotone that
 are supported by this class range from 0.35 up to and including the latest
-version (currently 0.99.1). If you happen to be using a newer version of
-Monotone then this class will hopefully largely work but without the support
-for new or changed features.
+version (currently 1.00). If you happen to be using a newer version of Monotone
+then this class will hopefully largely work but without the support for new or
+changed features.
 
 =head1 CONSTRUCTORS
 
@@ -1370,14 +1370,12 @@ mtn subprocess is started by this class.
 
 =head2 Use Of SIGALRM
 
-In order to reliably shutdown the mtn subprocess, the alarm() routine is used
-and will consequently reset any SIGALRM timers. In C I would obviously use
-setitimer() to set up any timeout timers and then restore their previous state,
-however to do this in Perl one has to use the Time::HiRes CPAN module. I felt
-that on balance it would be nicer not to introduce this dependency and use
-alarm(). Anyway if you want to do something periodically it is usually better
-to have a thread do that for you rather than use signals. If you have different
-opinions on this then please let me know.
+In order to reliably shutdown the mtn subprocess, alarm() is used to timeout
+calls to waitpid(), allowing this class to kill off any obstinate mtn
+subprocesses that remain after having their STDIN, STDOUT and STDERR file
+descriptors closed. Normally closing the file descriptors will cause a clean
+exit, I have never known it not to, at which point any alarms are reset without
+any SIGALRM signal being generated.
 
 =head2 General
 

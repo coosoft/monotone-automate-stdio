@@ -1,5 +1,26 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+1.00  Sun Apr 17 19:40:00 2011 Anthony Cooper <support@coosoft.plus.com>
+	- For STRING_KEY_VALUE parsing I now pass the offset of the relevant RE
+	  subexpression as an extra argument to get_quoted_value() rather than
+	  the slicker but more hacky `local' approach taken before.
+	- Reviewed the use of assorted string parsing tokens in the key hashes
+	  so as to allow more multi-line quoted values.
+	- Upped the version to 1.00. :-)
+	- Got the library to work with mtn version 1.00, ran tests and updated
+	  the test results file. Basically when parsing db variables one must
+	  allow for multi-line values.
+	- Changes made for ticket 137:
+	  - Now periodically check to see if anything needs reading from mtn's
+	    STDERR and if there is data then read it until there is no more.
+	    This is to stop mtn grinding to a halt because it is blocking on a
+	    write to STDERR.
+	- Now switched for tabs in indentation to spaces. Seems to be the way
+	  to go now. This has been checked in on its own as it is a massive
+	  change to the code.
+	- Updated the documentation to reflect versions supported and use of
+	  SIGALRM.
+
 0.12  Sun Feb 20 11:00:00 2011 Anthony Cooper <support@coosoft.plus.com>
 	- Now always convert any database specified with a relative path into
 	  an absolute path so that any subsequent chdir(2) call doesn't stop
