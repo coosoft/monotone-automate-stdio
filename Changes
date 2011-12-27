@@ -1,5 +1,16 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+0.12  Sun Feb 20 11:00:00 2011 Anthony Cooper <support@coosoft.plus.com>
+	- Now always convert any database specified with a relative path into
+	  an absolute path so that any subsequent chdir(2) call doesn't stop
+	  the library from opening the specified database.
+	- Now call the flush() method after writing out an automate stdio
+	  command string when sending instructions to Monotone. This strictly
+	  speaking is not necessary as print() and printf() flush on newline
+	  but it is best to be explicit.
+	- Now use the OO style calling convention for IO handle style objects
+	  rather than the functional style that was used in some places.
+
 0.11  Tue Jan 4 18:47:00 2011 Anthony Cooper <support@coosoft.plus.com>
 	- Added the MTN_SELECTOR_OR_OPERATOR constant and the supporting
 	  logic. Monotone now has an or `|' operator that I missed off when
@@ -99,7 +110,7 @@ Revision history for Perl extension Monotone::AutomateStdio.
 	  with the corresponding output.
 	- Corrected some comments.
 
-0.06  Sat Nov 7 15:27:00 2009 Anthony Cooper <support@coosoft.plus.com>
+0.06  Sat Nov 07 15:27:00 2009 Anthony Cooper <support@coosoft.plus.com>
 	- Updated library to take into account the changes made in Monotone
 	  0.45. This also includes the documentation. Changes include:
 	  - tags() and certs() now return a has as a key or signer rather than
@@ -121,7 +132,7 @@ Revision history for Perl extension Monotone::AutomateStdio.
 	- Now allow the --rcfile switch.
 	- Made other small consistency tidy ups.
 
-0.05  Fri Jun 5 17:49:00 2009 Anthony Cooper <support@coosoft.plus.com>
+0.05  Fri Jun 05 17:49:00 2009 Anthony Cooper <support@coosoft.plus.com>
 	- Updated for Monotone version 0.44:
 	  - Added support for the w: selector (feature MTN_W_SELECTOR).
 	  - Modified the genkey() and keys() methods to cope with the common
@@ -141,7 +152,7 @@ Revision history for Perl extension Monotone::AutomateStdio.
 	- Added a suppress_utf8_conversion() method for disabling the above
 	  conversion if so desired.
 
-0.04  Sun May 3 19:19:00 2009 Anthony Cooper <support@coosoft.plus.com>
+0.04  Sun May 03 19:19:00 2009 Anthony Cooper <support@coosoft.plus.com>
 	- Updated for Monotone version 0.43, (added support for the m: and u:
 	  selectors).
 	- Corrected and simplified the `Have I got a class thingy as my first
@@ -156,7 +167,7 @@ Revision history for Perl extension Monotone::AutomateStdio.
 	- Renamed some of the capability constants so as to fit in more
 	  naturally with the method renamed above.
 
-0.03  Sun Feb 8 18:22:00 2009 Anthony Cooper <support@coosoft.plus.com>
+0.03  Sun Feb 08 18:22:00 2009 Anthony Cooper <support@coosoft.plus.com>
 	- Switched all Perl scripts over to demanding Perl 5.8.5.
 	- Improved an error message (which was causing compilation to fail
 	  anyway).
@@ -166,7 +177,7 @@ Revision history for Perl extension Monotone::AutomateStdio.
 	- Changed the order of the Changes file (most recent first).
 	- Clarified some POD file text.
 
-0.02  Wed Jan 7 16:00:00 2009 Anthony Cooper <support@coosoft.plus.com>
+0.02  Wed Jan 07 16:00:00 2009 Anthony Cooper <support@coosoft.plus.com>
 	- Updated to work with Monotone version 0.42 (added the
 	  $mtn->file_merge(), $mtn->lua() and $mtn->read_packets() methods and
 	  added support for the --no-workspace mtn command line switch).
@@ -197,6 +208,6 @@ Revision history for Perl extension Monotone::AutomateStdio.
 	  obvious features, and an AUTHORS section. I have also revamped the
 	  RETURN VALUE section to make it more readable).
 
-0.01  Sun Nov 9 12:48:46 2008 Anthony Cooper <support@coosoft.plus.com>
+0.01  Sun Nov 09 12:48:46 2008 Anthony Cooper <support@coosoft.plus.com>
 	- original version; created by h2xs 1.23 with options
 		-X -n Monotone::AutomateStdio
