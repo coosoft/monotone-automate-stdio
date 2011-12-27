@@ -102,15 +102,16 @@ use constant MTN_P_SELECTOR                    => 25;
 use constant MTN_PUT_PUBLIC_KEY                => 26;
 use constant MTN_READ_PACKETS                  => 27;
 use constant MTN_REMOTE_CONNECTIONS            => 28;
-use constant MTN_SET_ATTRIBUTE                 => 29;
-use constant MTN_SET_DB_VARIABLE               => 30;
-use constant MTN_SHOW_CONFLICTS                => 31;
-use constant MTN_STREAM_IO                     => 32;
-use constant MTN_SYNCHRONISATION               => 33;
-use constant MTN_SYNCHRONISATION_WITH_OUTPUT   => 34;
-use constant MTN_U_SELECTOR                    => 35;
-use constant MTN_UPDATE                        => 36;
-use constant MTN_W_SELECTOR                    => 37;
+use constant MTN_SELECTOR_FUNCTIONS            => 29;
+use constant MTN_SET_ATTRIBUTE                 => 30;
+use constant MTN_SET_DB_VARIABLE               => 31;
+use constant MTN_SHOW_CONFLICTS                => 32;
+use constant MTN_STREAM_IO                     => 33;
+use constant MTN_SYNCHRONISATION               => 34;
+use constant MTN_SYNCHRONISATION_WITH_OUTPUT   => 35;
+use constant MTN_U_SELECTOR                    => 36;
+use constant MTN_UPDATE                        => 37;
+use constant MTN_W_SELECTOR                    => 38;
 
 # Constants used to represent the different error levels.
 
@@ -484,6 +485,7 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
 					MTN_PUT_PUBLIC_KEY
 					MTN_READ_PACKETS
 					MTN_REMOTE_CONNECTIONS
+					MTN_SELECTOR_FUNCTIONS
 					MTN_SET_ATTRIBUTE
 					MTN_SET_DB_VARIABLE
 					MTN_SHOW_CONFLICTS
@@ -4265,6 +4267,7 @@ sub supports($$)
 	   || $feature == MTN_GET_PUBLIC_KEY
 	   || $feature == MTN_K_SELECTOR
 	   || $feature == MTN_PUT_PUBLIC_KEY
+	   || $feature == MTN_SELECTOR_FUNCTIONS
 	   || $feature == MTN_SYNCHRONISATION_WITH_OUTPUT)
     {
 
