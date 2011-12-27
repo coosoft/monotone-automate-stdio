@@ -504,7 +504,7 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
 					MTN_T_STREAM)]);
 our @EXPORT = qw();
 Exporter::export_ok_tags(qw(capabilities severities streams));
-our $VERSION = 0.10;
+our $VERSION = 0.11;
 #
 ##############################################################################
 #

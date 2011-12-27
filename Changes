@@ -1,5 +1,10 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+0.11  Tue Jan 4 18:47:00 2011 Anthony Cooper <support@coosoft.plus.com>
+	- Added the MTN_SELECTOR_OR_OPERATOR constant and the supporting
+	  logic. Monotone now has an or `|' operator that I missed off when
+	  doing the 0.99.1 development.
+
 0.10  Thu Nov 27 18:47:00 2010 Anthony Cooper <support@coosoft.plus.com>
 	- Made changes for 0.99.1 of Monotone, specifically:
 	  - Added the checkout(), drop_public_key(),
