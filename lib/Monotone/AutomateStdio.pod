@@ -6,7 +6,7 @@ Monotone::AutomateStdio - Perl interface to Monotone via automate stdio
 
 =head1 VERSION
 
-0.09
+0.10
 
 =head1 SYNOPSIS
 
@@ -36,9 +36,9 @@ $mtn-E<gt>closedown() is called.
 All automate commands have been implemented in this class except for the
 `stdio' command, hopefully the reason is obvious :-). Versions of Monotone that
 are supported by this class range from 0.35 up to and including the latest
-version (currently 0.48). If you happen to be using a newer version of Monotone
-then this class will hopefully largely work but without the support for new or
-changed features.
+version (currently 0.99.1). If you happen to be using a newer version of
+Monotone then this class will hopefully largely work but without the support
+for new or changed features.
 
 =head1 CONSTRUCTORS
 
@@ -75,15 +75,24 @@ The @options parameter specifies what options are to be passed to the mtn
 subprocess. The currently supported list (in vaguely the format in which it
 would be passed to the constructor) is:
 
-    ["--confdir"            => <Directory>,
-     "--key"                => <Key To Be Used For Signatures>,
-     "--keydir"             => <Key Store Location>,
+    ["--allow-default-confdir",
+     "--allow-workspace",
+     "--builtin-rcfile",
+     "--clear-rcfiles",
+     "--confdir"               => <Directory>,
+     "--key"                   => <Key To Be Used For Signatures>,
+     "--keydir"                => <Key Store Location>,
+     "--no-builtin-rcfile",
      "--no-default-confdir",
+     "--no-standard-rcfiles",
      "--no-workspace",
      "--norc",
      "--nostd",
-     "--root"               => <Root Directory>,
-     "--ssh-sign"           => One of "check", "no" or "yes"]
+     "--rcfile"                => <LUA File To Load>,
+     "--root"                  => <Root Directory>,
+     "--ssh-sign"              => One of "check", "no" or "yes",
+     "--standard-rcfiles",
+     "--use-default-key"]
 
 =head1 CLASS METHODS
 
@@ -249,9 +258,9 @@ will always need a reference to a scalar and:
 will always need a reference to a list (each item is just a string containing a
 revision id rather than a record).
 
-The one exception to the above is the $mtn-E<gt>genkey() method, which expects
-a reference to either a scalar or a hash as it only ever returns one record's
-worth of information.
+The one exception to the above is the $mtn-E<gt>generate_key() method, which
+expects a reference to either a scalar or a hash as it only ever returns one
+record's worth of information.
 
 The remaining arguments depend upon the mtn command being used.
 
@@ -294,6 +303,25 @@ each one containing the following fields:
     value     - Its value.
     trust     - Its trust status. Values can be one of "trusted" or
                 "untrusted".
+
+=item B<$mtn-E<gt>checkout(\@options, $ws_dir)>
+
+Create a new workspace in the directory specified by $ws_dir. One can
+optionally specify the branch and revision if required. Please note that this
+command changes the current working directory of the mtn subprocess. If this is
+not what you want then the subprocess can simply be restarted by using the
+$mtn-E<gt>closedown() method.
+
+The $options argument is a list of valid options, with some having
+arguments. For example, one could call this method specifying all of the
+options like this:
+
+    $mtn->checkout(["branch"   => "net.venge.monotone",
+                    "revision" => "t:monotone-0.35",
+                    "move-conflicting-paths"],
+                   "my-mtn-ws");
+
+(feature: MTN_CHECKOUT)
 
 =item B<$mtn-E<gt>children(\@list, $revision_id)>
 
@@ -359,6 +387,13 @@ specified variable.
 
 (feature: MTN_DROP_DB_VARIABLES)
 
+=item B<$mtn-E<gt>drop_public_key($key_id)>
+
+Drop the public key from the database for the specified key id (either in the
+form of a name or hash id).
+
+(feature: MTN_DROP_PUBLIC_KEY)
+
 =item B<$mtn-E<gt>erase_ancestors(\@list[, $revision_id ...])>
 
 For a given list of revisions, weed out those that are ancestors to other
@@ -371,7 +406,7 @@ Get the result of merging two files, both of which are on separate revisions.
 
 (feature: MTN_FILE_MERGE)
 
-=item B<$mtn-E<gt>genkey(\$buffer | \%hash, $key_id, $pass_phrase)>
+=item B<$mtn-E<gt>generate_key(\$buffer | \%hash, $key_id, $pass_phrase)>
 
 Generate a new key for use within the database. If \$buffer is passed then the
 output from the command is simply placed into the variable. However if \%hash
@@ -399,6 +434,10 @@ following fields:
         private_locations - A list of locations for the private hash
                             code. Values can be one of "database" or
                             "keystore".
+
+Also known as $mtn-E<gt>genkey().
+
+(feature: MTN_GENERATE_KEY)
 
 =item B<$mtn-E<gt>get_attributes(\$buffer | \@list, $file_name)>
 
@@ -486,6 +525,40 @@ has been discovered but not to actually detect it in the first place. Use
 either an error handler or check the return status of methods to detect error
 conditions.
 
+=item B<$mtn-E<gt>get_extended_manifest_of(\$buffer | \@list, $revision_id)>
+
+Get the extended manifest for the specified revision. If \$buffer is passed
+then the output from the command is simply placed into the variable. However if
+\@list is passed then the output is returned as a list of anonymous hashes,
+each one containing one or more of the following fields:
+
+    type         - The type of entry. Values can be one of "file" or
+                   "directory".
+    name         - The name of the directory or file.
+    file_id      - The id of the file. This field is only present if
+                   type is set to "file".
+    birth        - The id of the revision in which the node was first
+                   added.
+    content_mark - The id of the revision in which the contents of
+                   the file was last changed.
+    path_mark    - The id of the revision in which the file was last
+                   renamed.
+    size         - The size of the file's contents in bytes.
+    attributes   - A list of attributes for the file or directory.
+                   Each entry has the following fields:
+                       attribute - The name of the attribute.
+                       value     - The value of the attribute.
+    attr_mark    - A list of attributes and when they were lasted
+                   changed. Each entry has the following fields:
+                       attribute   - The name of the attribute.
+                       revision_id - The id of the revision in which
+                                     the attributes value was last
+                                     changed.
+    dormant_attr - A list of attributes that have previously been
+                   deleted.
+
+(feature: MTN_GET_EXTENDED_MANIFEST_OF)
+
 =item B<$mtn-E<gt>get_file(\$buffer, $file_id)>
 
 Get the contents of the file referenced by the specified file id.
@@ -495,7 +568,13 @@ Get the contents of the file referenced by the specified file id.
 Get the contents of the specified file under the specified revision. If the
 revision id is undefined then the current workspace revision is used.
 
-=item B<$mtn-E<gt>get_manifest_of(\$buffer | \@list, $revision_id)>
+=item B<$mtn-E<gt>get_file_size(\$buffer, $file_id)>
+
+Get the size of the file referenced by the specified file id.
+
+(feature: MTN_GET_FILE_SIZE)
+
+=item B<$mtn-E<gt>get_manifest_of(\$buffer | \@list[, $revision_id])>
 
 Get the manifest for the current or specified revision. If \$buffer is
 passed then the output from the command is simply placed into the
@@ -522,6 +601,13 @@ Return the process id of the mtn subprocess spawned by this class. Zero is
 returned if no subprocess is thought to exist. Also if the subprocess should
 exit unexpectedly then this method will carry on returning its process id until
 the $mtn-E<gt>closedown() method is called.
+
+=item B<$mtn-E<gt>get_public_key(\$buffer, $key_id)>
+
+Get the public key for the specified key id (either in the form of a name or
+hash id).
+
+(feature: MTN_GET_PUBLIC_KEY)
 
 =item B<$mtn-E<gt>get_revision(\$buffer | \@list, $revision_id)>
 
@@ -652,7 +738,7 @@ each one containing one or more of the following fields:
                    been renamed in the revision manifest.
         new_path - The new name of the file or directory if it has
                    been renamed in the revision manifest.
-        birth_id - The revision id in which the node was first
+        birth    - The id of the revision in which the node was first
                    added. Only from version 0.41 of Monotone
                    onwards. (feature: MTN_INVENTORY_WITH_BIRTH_ID)
         status   - A list of status flags. Values can be one of
@@ -732,6 +818,28 @@ not defined()).
 
 Get a list of leaf revisions.
 
+=item B<$mtn-E<gt>log(\@list[, \@options[, $file_name]])>
+
+Get a list of revision ids that form a log history for an entire project,
+optionally limiting the output by using the specified options and file name
+restrictions.
+
+The $options argument is a list of valid options, with some having
+arguments. For example, one could call this method specifying all of the
+options like this:
+
+    $mtn->log(\@list,
+              ["clear-from",
+               "clear-to",
+               "from"       => "h:",
+               "last"       => 20,
+               "next"       => 30,
+               "no-merges"
+               "to"         => "t:test-checkin"],
+              "Makefile.am");
+
+(feature: MTN_LOG)
+
 =item B<$mtn-E<gt>lua(\$buffer, $lua_function[, $argument ...])>
 
 Call the specified LUA function with any required arguments.
@@ -762,7 +870,7 @@ packet format.
 
 Get a list of parents for the specified revision.
 
-=item B<$mtn-E<gt>pull([@options[, $service[, $pattern]]])>
+=item B<$mtn-E<gt>pull(\$buffer | \@list[,@options[, $uri]])>
 
 Synchronises database changes from the specified remote server to the local
 database but not in the other direction. Other details are identical to the
@@ -770,7 +878,7 @@ $mtn-E<gt>sync() method.
 
 (feature: MTN_SYNCHRONISATION)
 
-=item B<$mtn-E<gt>push([@options[, $service[, $pattern]]])>
+=item B<$mtn-E<gt>push(\$buffer | \@list[,@options[, $uri]])>
 
 Synchronises database changes from the local database to the specified remote
 server but not in the other direction. Other details are identical to the
@@ -782,6 +890,12 @@ $mtn-E<gt>sync() method.
 
 Put the specified file contents into the database, optionally basing it on the
 specified file id (this is used for delta encoding). The file id is returned.
+
+=item B<$mtn-E<gt>put_public_key($public_key)>
+
+Put the specified public key data into the database.
+
+(feature: MTN_PUT_PUBLIC_KEY)
 
 =item B<$mtn-E<gt>put_revision(\$buffer, \$contents)>
 
@@ -941,31 +1055,42 @@ not defined()).
 Determine whether a certain feature is available with the version of Monotone
 that is currently being used by this object. The list of valid features are:
 
+    MTN_CHECKOUT
     MTN_COMMON_KEY_HASH
     MTN_CONTENT_DIFF_EXTRA_OPTIONS
     MTN_DB_GET
     MTN_DROP_ATTRIBUTE
     MTN_DROP_DB_VARIABLES
+    MTN_DROP_PUBLIC_KEY
     MTN_FILE_MERGE
+    MTN_GENERATE_KEY
     MTN_GET_ATTRIBUTES
     MTN_GET_CURRENT_REVISION
     MTN_GET_DB_VARIABLES
+    MTN_GET_EXTENDED_MANIFEST_OF
+    MTN_GET_FILE_SIZE
+    MTN_GET_PUBLIC_KEY
     MTN_GET_WORKSPACE_ROOT
     MTN_HASHED_SIGNATURES
     MTN_IGNORING_OF_SUSPEND_CERTS
     MTN_INVENTORY_IN_IO_STANZA_FORMAT
     MTN_INVENTORY_TAKING_OPTIONS
     MTN_INVENTORY_WITH_BIRTH_ID
+    MTN_K_SELECTOR
+    MTN_LOG
     MTN_LUA
     MTN_M_SELECTOR
     MTN_P_SELECTOR
+    MTN_PUT_PUBLIC_KEY
     MTN_READ_PACKETS
     MTN_REMOTE_CONNECTIONS
+    MTN_SELECTOR_FUNCTIONS
     MTN_SET_ATTRIBUTE
     MTN_SET_DB_VARIABLE
     MTN_SHOW_CONFLICTS
     MTN_STREAM_IO
     MTN_SYNCHRONISATION
+    MTN_SYNCHRONISATION_WITH_OUTPUT
     MTN_U_SELECTOR
     MTN_UPDATE
     MTN_W_SELECTOR
@@ -979,22 +1104,44 @@ Please note that if you see (feature: ...) then this means that whatever is
 being discussed is only available if $mtn-E<gt>supports() returns true for the
 specified feature.
 
-=item B<$mtn-E<gt>sync([@options[, $service[, $pattern]]])>
+=item B<$mtn-E<gt>sync(\$buffer | \@list[,@options[, $uri]])>
 
 Synchronises database changes between the local database and the specified
-remote server. $service is in exactly the same format as for the
-Monotone::AutomateStdio->new_from_service() constructor. $pattern is a branch
-pattern to include in the synchronisation operation.
+remote server. $uri specifies the name of the server, the port, the database
+and the branch pattern to synchronise to, for example
+"mtn://code.monotone.ca:8000/monotone?net.venge.monotone*". If \$buffer is
+passed then the output from the command is simply placed into the
+variable. However if \@list is passed then the output is returned as a list of
+anonymous hashes, each one containing one or more of the following fields
+(feature: MTN_SYNCHRONISATION_WITH_OUTPUT):
+
+    key              - The signing key id for the current item.
+    receive_cert     - The name of the certificate that has just been
+                       received.
+    receive_key      - The id of the key that has just been received.
+    receive_revision - The id of the revision that has just been
+                       received.
+    revision         - The id of the revision relating to the current
+                       item.
+    send_cert        - The name of the certificate that has just been
+                       sent.
+    send_key         - The id of the key that has just been sent.
+    send_revision    - The id of the revision that has just been
+                       sent.
+    value            - The value of the certificate.
 
 The $options argument is a list of valid options, with some having
 arguments. For example, one could call this method specifying all of the
 options like this:
 
-    $mtn->sync(["exclude"             => "experiments.hacks",
+    $mtn->sync(\$buffer,
+               ["dry-run",
+                "exclude"             => "experiments.hacks",
                 "key-to-push"         => "me@mydomain.com",
                 "max-netsync-version" => 2,
                 "min-netsync-version" => 1,
-                "set-default"]);
+                "set-default"],
+               "mtn://code.monotone.ca/monotone?net.venge.monotone");
 
 (feature: MTN_SYNCHRONISATION)
 

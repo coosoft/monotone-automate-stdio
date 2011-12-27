@@ -181,6 +181,32 @@ my %valid_mtn_options = ("--allow-default-confdir" => 0,
 			 "--standard-rcfiles"      => 0,
 			 "--use-default-key"       => 0);
 
+# A map for quickly detecting all non-argument options that can be used on any
+# command.
+
+my %non_arg_options = ("clear-from"                => 1,
+		       "clear-to"                  => 1,
+		       "corresponding-renames"     => 1,
+		       "dry-run"                   => 1,
+		       "ignore-suspend-certs"      => 1,
+		       "ignored"                   => 1,
+		       "merges"                    => 1,
+		       "move-conflicting-paths"    => 1,
+		       "no-corresponding-renames"  => 1,
+		       "no-ignore-suspend-certs"   => 1,
+		       "no-ignored"                => 1,
+		       "no-merges"                 => 1,
+		       "no-move-conflicting-paths" => 1,
+		       "no-set-default"            => 1,
+		       "no-unchanged"              => 1,
+		       "no-unknown"                => 1,
+		       "reverse"                   => 1,
+		       "set-default"               => 1,
+		       "unchanged"                 => 1,
+		       "unknown"                   => 1,
+		       "with-header"               => 1,
+		       "without-header"            => 1);
+
 # Maps for quickly detecting valid keys and determining their value types.
 
 my %certs_keys = ("key"       => HEX_ID | STRING,
@@ -279,32 +305,6 @@ my %tags_keys = ("branches"       => NULL | STRING_LIST,
 		 "revision"       => HEX_ID,
 		 "signer"         => HEX_ID | STRING,
 		 "tag"            => STRING);
-
-# A map for quickly detecting all non-argument options that can be used on any
-# command.
-
-my %non_arg_options = ("clear-from"                => 1,
-		       "clear-to"                  => 1,
-		       "corresponding-renames"     => 1,
-		       "dry-run"                   => 1,
-		       "ignore-suspend-certs"      => 1,
-		       "ignored"                   => 1,
-		       "merges"                    => 1,
-		       "move-conflicting-paths"    => 1,
-		       "no-corresponding-renames"  => 1,
-		       "no-ignore-suspend-certs"   => 1,
-		       "no-ignored"                => 1,
-		       "no-merges"                 => 1,
-		       "no-move-conflicting-paths" => 1,
-		       "no-set-default"            => 1,
-		       "no-unchanged"              => 1,
-		       "no-unknown"                => 1,
-		       "reverse"                   => 1,
-		       "set-default"               => 1,
-		       "unchanged"                 => 1,
-		       "unknown"                   => 1,
-		       "with-header"               => 1,
-		       "without-header"            => 1);
 
 # Version of Monotone being used.
 
