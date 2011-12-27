@@ -1,5 +1,37 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+0.10  Thu Nov 27 18:47:00 2010 Anthony Cooper <support@coosoft.plus.com>
+	- Made changes for 0.99.1 of Monotone, specifically:
+	  - Added the checkout(), drop_public_key(),
+	    get_extended_manifest_of(), get_file_size(), get_public_key(),
+	    log() and put_public_key() methods.
+	  - Renamed the genkey() method to generate_key() (the old name is now
+	    aliased to the new one).
+	  - The pull(), push() and sync() methods now support the --dry-run
+	    option, output information in the form of structured records and
+	    now only expect the URI style syntax for server end points.
+	  - Mtn startup options have been updated in light of the CLI switches
+	    revamp.
+	- The parse_kv_record() routine now supports fields that occur multiple
+	  times in an I/O stanza record. Also a new value type,
+	  STRING_AND_HEX_ID, has now been added.
+	- There are now no exceptions to using the parse_kv_record() routine
+	  for processing I/O stanza style records.
+	- Option parsing/expansion is now done in one place (inside the
+	  expand_options() routine.
+	- All birth fields are named birth as against birth_id.
+	- New objects are now only created if a unique id can be found for them
+	  first.
+	- Updated the POD documentation for the changes made for Monotone
+	  0.99.1.
+	- Updated mtn-tester to cope with the new Monotone 0.99.1 changes.
+	- Changed mtn-tester so that error messages returned by the
+	  get_error_message() method only get displayed if they are different
+	  from before (helps to minimise changes in the test output logs).
+	- Reformatted my statements slightly so as to be more consistent with
+	  other statements.
+	- Upped the version number to 0.10.
+
 0.09  Thu Aug 12 17:40:00 2010 Anthony Cooper <support@coosoft.plus.com>
 	- Added support for Monotone version 0.48 by adding the update()
 	  method.
