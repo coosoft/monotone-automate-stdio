@@ -30,10 +30,11 @@ use constant VARIABLE    => 5;
 
 my $key_id = '<Key Id>';
 
-my($data,
-   %hash,
-   @list,
-   $mtn);
+my ($data,
+    %hash,
+    $last_error_message,
+    @list,
+    $mtn);
 
 my @test_list =
     ({fn   => \&Monotone::AutomateStdio::ancestors,
@@ -67,6 +68,37 @@ my @test_list =
       desc => "certs",
       type => RECORD_LIST,
       args => ["f06e40cb1d2b4f5c0db387e7a6c37681f1f89294"]},
+
+     {fn   => undef,
+      desc => "checkout",
+      feat => MTN_CHECKOUT,
+      type => CODE,
+      code => sub {
+		  my ($p_buffer,
+		      $pfh,
+		      $t_buffer,
+		      $tfh);
+		  $p_buffer = $t_buffer = "";
+		  open($pfh, ">", \$p_buffer);
+		  open($tfh, ">", \$t_buffer);
+		  $mtn->register_stream_handle(MTN_P_STREAM, $pfh);
+		  $mtn->register_stream_handle(MTN_T_STREAM, $tfh);
+		  $mtn->checkout(["branch" => "net.venge.monotone"],
+				 "../MTN-TESTER-WS");
+		  $mtn->register_stream_handle(MTN_P_STREAM, undef);
+		  $mtn->register_stream_handle(MTN_T_STREAM, undef);
+		  $pfh->close();
+		  $tfh->close();
+		  $mtn->closedown();
+		  print(" ----- Output of checkout progress stream -----\n");
+		  print($p_buffer);
+		  print("\n ----------\n");
+		  print(" ----- Output of checkout ticker stream -----\n");
+		  print($t_buffer);
+		  print("\n ----------\n");
+		  system("ls -1 ../MTN-TESTER-WS");
+		  system("/bin/rm -rf ../MTN-TESTER-WS");
+	      }},
 
      {fn   => \&Monotone::AutomateStdio::children,
       desc => "children",
@@ -186,8 +218,8 @@ my @test_list =
 	       "b9a5862a8ba577538f27c69656d8a6bb60ecb777",
 	       "ui.cc"]},
 
-     {fn   => \&Monotone::AutomateStdio::genkey,
-      desc => "genkey",
+     {fn   => \&Monotone::AutomateStdio::generate_key,
+      desc => "generate_key",
       type => RECORD,
       args => ["pooh.bear_XxX_1234\@test-id.com",
 	       "little brain"]},
@@ -348,6 +380,12 @@ my @test_list =
 		  $mtn->drop_db_variables("TST-vars");
 	      }},
 
+     {fn   => \&Monotone::AutomateStdio::get_extended_manifest_of,
+      desc => "get_extended_manifest_of",
+      feat => MTN_GET_EXTENDED_MANIFEST_OF,
+      type => RECORD_LIST,
+      args => ["95c9125530ea297d244b522426997942635d3891"]},
+
      {fn   => \&Monotone::AutomateStdio::get_file,
       desc => "get_file (fetching the COPYING file)",
       type => RAW,
@@ -358,6 +396,12 @@ my @test_list =
       type => RAW,
       args => ["INSTALL",
 	       "ec5d40149421cbd1b6984de0806d323f9e1e6e60"]},
+
+     {fn   => \&Monotone::AutomateStdio::get_file_size,
+      desc => "get_file_size (file snowdonia.xcf)",
+      feat => MTN_GET_FILE_SIZE,
+      type => VARIABLE,
+      args => ["fa7079a79ac61b8e41d3932c35875534d69e8ed8"]},
 
      {fn   => \&Monotone::AutomateStdio::get_manifest_of,
       desc => "get_manifest_of",
@@ -379,7 +423,7 @@ my @test_list =
      {fn   => \&Monotone::AutomateStdio::get_revision,
       desc => "get_revision",
       type => RECORD_LIST,
-      args => ["ec5d40149421cbd1b6984de0806d323f9e1e6e60"]},
+      args => ["95c9125530ea297d244b522426997942635d3891"]},
 
      {fn   => \&Monotone::AutomateStdio::get_workspace_root,
       desc => "get_workspace_root",
@@ -472,6 +516,19 @@ my @test_list =
       type => LIST,
       args => []},
 
+     {fn   => \&Monotone::AutomateStdio::log,
+      desc => "log (everything)",
+      feat => MTN_LOG,
+      type => LIST,
+      args => [["from" => "ee9d2b736adc24fb9a5926f68304814e93ee8726"]]},
+
+     {fn   => \&Monotone::AutomateStdio::log,
+      desc => "log (of snowdonia.xcf)",
+      feat => MTN_LOG,
+      type => LIST,
+      args => [["from" => "ee9d2b736adc24fb9a5926f68304814e93ee8726"],
+	       "snowdonia.xcf"]},
+
      {fn   => \&Monotone::AutomateStdio::lua,
       desc => "lua",
       feat => MTN_LUA,
@@ -510,12 +567,12 @@ my @test_list =
       type => CODE,
       code => sub {
                   my $data_file = IO::File->new("../COPYING", "r");
-		  my($base_rev,
-		     $fdata,
-		     $file_id,
-		     $old_file_id,
-		     $rev_data,
-		     $rev_id);
+		  my ($base_rev,
+		      $fdata,
+		      $file_id,
+		      $old_file_id,
+		      $rev_data,
+		      $rev_id);
 
 		  $data_file->sysread($fdata, 64000);
 		  $data_file = undef;
@@ -565,6 +622,31 @@ my @test_list =
 		  print("Displaying revision change log:\n");
 		  system("mtn update");
 		  system("mtn log --last 5 --no-graph");
+	      }},
+
+     {fn   => undef,
+      desc => "get/drop/put_public_key",
+      feat => MTN_GET_PUBLIC_KEY,
+      type => CODE,
+      code => sub {
+	          my $data;
+	          $mtn->put_public_key
+		      ("[pubkey drwho\@bbc.co.uk]\n"
+		       . "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+kmyQB3E4q7cr"
+		       . "e9C9WCqHrF4A5A0bQzNLPVmc9ix3Jw6JPEi/dLhQMqJ5AjRbXXeE"
+		       . "v854J7KoDJQSgRTeONih5C9mNlv/F8arrQ+0w1ov+dfKEhpFcsjA"
+		       . "VIfuSmEx9Wid9KL+kh3Chij1BeINeSckGfudv2O8U7wLLMK7toCb"
+		       . "5wIDAQAB\n"
+		       . "[end]\n");
+		  print("Added the drwho\@bbc.co.uk public key\n");
+		  print("Now getting the drwho\@bbc.co.uk public key:\n");
+		  $mtn->get_public_key(\$data, "drwho\@bbc.co.uk");
+		  print($data);
+		  print("Now dropping the drwho\@bbc.co.uk public key\n");
+		  $mtn->drop_public_key("drwho\@bbc.co.uk");
+		  print("Now getting the drwho\@bbc.co.uk public key:\n");
+		  $mtn->get_public_key(\$data, "drwho\@bbc.co.uk");
+		  print($data);
 	      }},
 
      {fn   => undef,
@@ -644,23 +726,27 @@ my @test_list =
       code => sub {
 	          foreach my $op ("sync", "pull", "push")
 		  {
-		      my($p_buffer,
-			 $pfh,
-			 $t_buffer,
-			 $tfh);
+		      my (@list,
+			  $p_buffer,
+			  $pfh,
+			  $t_buffer,
+			  $tfh);
 		      $p_buffer = $t_buffer = "";
 		      open($pfh, ">", \$p_buffer);
 		      open($tfh, ">", \$t_buffer);
 		      $mtn->register_stream_handle(MTN_P_STREAM, $pfh);
 		      $mtn->register_stream_handle(MTN_T_STREAM, $tfh);
 		      &{$Monotone::AutomateStdio::{$op}}($mtn,
+							 \@list,
 							 [],
-							 "localhost",
-							 "*");
+							 "mtn://localhost/?*");
 		      $mtn->register_stream_handle(MTN_P_STREAM, undef);
 		      $mtn->register_stream_handle(MTN_T_STREAM, undef);
 		      $pfh->close();
 		      $tfh->close();
+		      print(" ----- Structured Data For $op -----\n");
+		      print(Dumper(\@list));
+		      print("\n ----------\n");
 		      print(" ----- Output of $op progress stream -----\n");
 		      print($p_buffer);
 		      print("\n ----------\n");
@@ -677,8 +763,8 @@ my @test_list =
       feat => MTN_REMOTE_CONNECTIONS,
       type => CODE,
       code => sub {
-	          my(@branches,
-		     $rmtn);
+	          my (@branches,
+		      $rmtn);
 		  $rmtn = Monotone::AutomateStdio->
 		      new_from_service("localhost", ["--key" => $key_id]);
 		  $rmtn->branches(\@branches);
@@ -702,10 +788,10 @@ my @test_list =
 				       . ".automate-stdio.test",
 				   revision => "h:"])
 		  {
-		      my($p_buffer,
-			 $pfh,
-			 $t_buffer,
-			 $tfh);
+		      my ($p_buffer,
+			  $pfh,
+			  $t_buffer,
+			  $tfh);
 		      $p_buffer = $t_buffer = "";
 		      open($pfh, ">", \$p_buffer);
 		      open($tfh, ">", \$t_buffer);
@@ -787,12 +873,13 @@ Monotone::AutomateStdio->register_error_handler
     (MTN_SEVERITY_ALL,
      sub
      {
-	 my($severity, $message) = @_;
+	 my ($severity, $message) = @_;
 	 printf(STDERR "\n\n====================\nPROBLEM (%s): %s\n",
 		$severity, $message);
 	 cluck();
      });
 
+$last_error_message = "";
 foreach my $test (@test_list)
 {
     if (! exists($test->{feat}) || $mtn->supports($test->{feat}))
@@ -875,8 +962,16 @@ foreach my $test (@test_list)
 	{
 	    $test->{posc}();
 	}
-	printf("\nget_error_message() method returned `%s'\n",
-	       $mtn->get_error_message());
+	if ($mtn->get_error_message() ne $last_error_message)
+	{
+	    $last_error_message = $mtn->get_error_message();
+	    printf("\nget_error_message() method returned `%s'\n",
+		   $last_error_message);
+	}
+	else
+	{
+	    printf("\nget_error_message() method return value is unchanged\n");
+	}
     }
 }
 

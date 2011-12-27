@@ -134,14 +134,15 @@ use constant IN_MEMORY_DB_NAME => ":memory:";
 
 # Constants used to represent different value formats.
 
-use constant BARE_PHRASE       => 0x01;  # E.g. orphaned_directory.
-use constant HEX_ID            => 0x02;  # E.g. [ab2 ... 1be].
-use constant NULL              => 0x04;  # Nothing, i.e. we just have the key.
-use constant OPTIONAL_HEX_ID   => 0x08;  # As HEX_ID but also [].
-use constant STRING            => 0x10;  # Any quoted string, possibly escaped.
-use constant STRING_AND_HEX_ID => 0x20;  # E.g. "fileprop" [ab2 ... 1be].
-use constant STRING_ENUM       => 0x40;  # E.g. "rename_source".
-use constant STRING_LIST       => 0x80;  # E.g. "..." "...", possibly escaped.
+use constant BARE_PHRASE       => 0x001;  # E.g. orphaned_directory.
+use constant HEX_ID            => 0x002;  # E.g. [ab2 ... 1be].
+use constant NON_UNIQUE        => 0x004;  # Key can occur more than once.
+use constant NULL              => 0x008;  # Nothing, i.e. we just have the key.
+use constant OPTIONAL_HEX_ID   => 0x010;  # As HEX_ID but also [].
+use constant STRING            => 0x020;  # Quoted string, possibly escaped.
+use constant STRING_AND_HEX_ID => 0x040;  # E.g. "fileprop" [ab2 ... 1be].
+use constant STRING_ENUM       => 0x080;  # E.g. "rename_source".
+use constant STRING_LIST       => 0x100;  # E.g. "..." "...", possibly escaped.
 
 # Private structures for managing inside-out key caching style objects.
 
@@ -198,17 +199,24 @@ my %get_attributes_keys = ("attr"           => STRING_LIST,
 			   "format_version" => STRING_ENUM,
 			   "state"          => STRING_ENUM);
 my %get_db_variables_keys = ("domain" => STRING,
-			     "entry"  => STRING_LIST);
-my %get_extended_manifest_of_keys = ("attr"         => STRING_LIST,
-				     "attr_mark"    => STRING_AND_HEX_ID,
+			     "entry"  => NON_UNIQUE | STRING_LIST);
+my %get_extended_manifest_of_keys = ("attr"         => NON_UNIQUE
+				                           | STRING_LIST,
+				     "attr_mark"    => NON_UNIQUE
+				                           | STRING_AND_HEX_ID,
 				     "birth"        => HEX_ID,
 				     "content"      => HEX_ID,
 				     "content_mark" => HEX_ID,
 				     "dir"          => STRING,
-				     "dormant_attr" => STRING,
+				     "dormant_attr" => NON_UNIQUE | STRING,
 				     "file"         => STRING,
 				     "path_mark"    => HEX_ID,
 				     "size"         => STRING);
+my %get_manifest_of_keys = ("attr"           => NON_UNIQUE | STRING_LIST,
+			    "content"        => HEX_ID,
+			    "dir"            => STRING,
+			    "file"           => STRING,
+			    "format_version" => STRING_ENUM);
 my %inventory_keys = ("birth"    => HEX_ID,
 		      "changes"  => STRING_LIST,
 		      "fs_type"  => STRING_ENUM,
@@ -318,13 +326,13 @@ my $carper = sub { return; };
 my $croaker = \&croak;
 my $db_locked_handler = sub { return; };
 my $io_wait_handler = sub { return; };
-my($db_locked_handler_data,
-   $error_handler,
-   $error_handler_data,
-   $io_wait_handler_data,
-   $io_wait_handler_timeout,
-   $warning_handler,
-   $warning_handler_data);
+my ($db_locked_handler_data,
+    $error_handler,
+    $error_handler_data,
+    $io_wait_handler_data,
+    $io_wait_handler_timeout,
+    $warning_handler,
+    $warning_handler_data);
 
 # ***** FUNCTIONAL PROTOTYPES *****
 
@@ -492,7 +500,7 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
 					MTN_T_STREAM)]);
 our @EXPORT = qw();
 Exporter::export_ok_tags(qw(capabilities severities streams));
-our $VERSION = 0.09;
+our $VERSION = 0.10;
 #
 ##############################################################################
 #
@@ -525,10 +533,10 @@ sub new_from_db($;$$)
     my $options = shift();
     $options = [] unless (defined($options));
 
-    my($db,
-       $this,
-       $self,
-       $ws_path);
+    my ($db,
+	$this,
+	$self,
+	$ws_path);
 
     # Check all the arguments given to us.
 
@@ -585,12 +593,12 @@ sub new_from_service($$;$)
 
     my $class = (ref($_[0]) ne "") ? ref($_[0]) : $_[0];
     shift();
-    my($service, $options) = @_;
+    my ($service, $options) = @_;
     $options = [] unless (defined($options));
 
-    my($self,
-       $server,
-       $this);
+    my ($self,
+	$server,
+	$this);
 
     # Check all the arguments given to us.
 
@@ -655,9 +663,9 @@ sub new_from_ws($;$$)
     my $options = shift();
     $options = [] unless (defined($options));
 
-    my($db_name,
-       $self,
-       $this);
+    my ($db_name,
+	$self,
+	$this);
 
     # Check all the arguments given to us.
 
@@ -747,7 +755,7 @@ sub DESTROY($)
 sub ancestors($$@)
 {
 
-    my($self, $list, @revision_ids) = @_;
+    my ($self, $list, @revision_ids) = @_;
 
     return $self->mtn_command("ancestors", 0, 0, $list, @revision_ids);
 
@@ -777,7 +785,7 @@ sub ancestors($$@)
 sub ancestry_difference($$$;@)
 {
 
-    my($self, $list, $new_revision_id, @old_revision_ids) = @_;
+    my ($self, $list, $new_revision_id, @old_revision_ids) = @_;
 
     return $self->mtn_command("ancestry_difference",
 			      0,
@@ -806,7 +814,7 @@ sub ancestry_difference($$$;@)
 sub branches($$)
 {
 
-    my($self, $list) = @_;
+    my ($self, $list) = @_;
 
     return $self->mtn_command("branches", 0, 1, $list);
 
@@ -832,7 +840,7 @@ sub branches($$)
 sub cert($$$$)
 {
 
-    my($self, $revision_id, $name, $value) = @_;
+    my ($self, $revision_id, $name, $value) = @_;
 
     my $dummy;
 
@@ -866,7 +874,7 @@ sub cert($$$$)
 sub certs($$$)
 {
 
-    my($self, $ref, $revision_id) = @_;
+    my ($self, $ref, $revision_id) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -878,8 +886,8 @@ sub certs($$$)
     else
     {
 
-	my($i,
-	   @lines);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command("certs", 0, 1, \@lines, $revision_id))
 	{
@@ -938,10 +946,10 @@ sub certs($$$)
 sub checkout($$$)
 {
 
-    my($self, $options, $ws_dir) = @_;
+    my ($self, $options, $ws_dir) = @_;
 
-    my($dummy,
-       @opts);
+    my ($dummy,
+	@opts);
 
     # Process any options.
 
@@ -978,7 +986,7 @@ sub checkout($$$)
 sub children($$$)
 {
 
-    my($self, $list, @revision_ids) = @_;
+    my ($self, $list, @revision_ids) = @_;
 
     return $self->mtn_command("children", 0, 0, $list, @revision_ids);
 
@@ -1006,7 +1014,7 @@ sub children($$$)
 sub common_ancestors($$@)
 {
 
-    my($self, $list, @revision_ids) = @_;
+    my ($self, $list, @revision_ids) = @_;
 
     return $self->mtn_command("common_ancestors", 0, 0, $list, @revision_ids);
 
@@ -1043,7 +1051,7 @@ sub common_ancestors($$@)
 sub content_diff($$;$$$@)
 {
 
-    my($self, $buffer, $options, $revision_id1, $revision_id2, @file_names)
+    my ($self, $buffer, $options, $revision_id1, $revision_id2, @file_names)
 	= @_;
 
     my @opts;
@@ -1085,7 +1093,7 @@ sub content_diff($$;$$$@)
 sub db_get($$$$)
 {
 
-    my($self, $buffer, $domain, $name) = @_;
+    my ($self, $buffer, $domain, $name) = @_;
 
     return $self->mtn_command("db_get", 1, 1, $buffer, $domain, $name);
 
@@ -1112,7 +1120,7 @@ sub db_get($$$$)
 sub descendents($$@)
 {
 
-    my($self, $list, @revision_ids) = @_;
+    my ($self, $list, @revision_ids) = @_;
 
     return $self->mtn_command("descendents", 0, 0, $list, @revision_ids);
 
@@ -1139,7 +1147,7 @@ sub descendents($$@)
 sub drop_attribute($$$)
 {
 
-    my($self, $path, $key) = @_;
+    my ($self, $path, $key) = @_;
 
     my $dummy;
 
@@ -1168,7 +1176,7 @@ sub drop_attribute($$$)
 sub drop_db_variables($$;$)
 {
 
-    my($self, $domain, $name) = @_;
+    my ($self, $domain, $name) = @_;
 
     my $dummy;
 
@@ -1200,7 +1208,7 @@ sub drop_db_variables($$;$)
 sub drop_public_key($$)
 {
 
-    my($self, $key_id) = @_;
+    my ($self, $key_id) = @_;
 
     my $dummy;
 
@@ -1230,7 +1238,7 @@ sub drop_public_key($$)
 sub erase_ancestors($$;@)
 {
 
-    my($self, $list, @revision_ids) = @_;
+    my ($self, $list, @revision_ids) = @_;
 
     return $self->mtn_command("erase_ancestors", 0, 0, $list, @revision_ids);
 
@@ -1262,12 +1270,12 @@ sub erase_ancestors($$;@)
 sub file_merge($$$$$$)
 {
 
-    my($self,
-       $buffer,
-       $left_revision_id,
-       $left_file_name,
-       $right_revision_id,
-       $right_file_name) = @_;
+    my ($self,
+	$buffer,
+	$left_revision_id,
+	$left_file_name,
+	$right_revision_id,
+	$right_file_name) = @_;
 
     return $self->mtn_command("file_merge",
 			      1,
@@ -1300,7 +1308,7 @@ sub file_merge($$$$$$)
 sub generate_key($$$$)
 {
 
-    my($self, $ref, $key_id, $pass_phrase) = @_;
+    my ($self, $ref, $key_id, $pass_phrase) = @_;
 
     my $cmd;
 
@@ -1325,9 +1333,9 @@ sub generate_key($$$$)
     else
     {
 
-	my($i,
-	   $kv_record,
-	   @lines);
+	my ($i,
+	    $kv_record,
+	    @lines);
 
 	if (! $self->mtn_command($cmd, 1, 1, \@lines, $key_id, $pass_phrase))
 	{
@@ -1375,7 +1383,7 @@ sub generate_key($$$$)
 sub get_attributes($$$)
 {
 
-    my($self, $ref, $file_name) = @_;
+    my ($self, $ref, $file_name) = @_;
 
     my $cmd;
 
@@ -1400,8 +1408,8 @@ sub get_attributes($$$)
     else
     {
 
-	my($i,
-	   @lines);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command($cmd, 1, 1, \@lines, $file_name))
 	{
@@ -1463,7 +1471,7 @@ sub get_attributes($$$)
 sub get_base_revision_id($$)
 {
 
-    my($self, $buffer) = @_;
+    my ($self, $buffer) = @_;
 
     my @list;
 
@@ -1501,10 +1509,10 @@ sub get_base_revision_id($$)
 sub get_content_changed($$$$)
 {
 
-    my($self, $list, $revision_id, $file_name) = @_;
+    my ($self, $list, $revision_id, $file_name) = @_;
 
-    my($i,
-       @lines);
+    my ($i,
+	@lines);
 
     # Run the command and get the data.
 
@@ -1557,11 +1565,11 @@ sub get_content_changed($$$$)
 sub get_corresponding_path($$$$$)
 {
 
-    my($self, $buffer, $source_revision_id, $file_name, $target_revision_id)
+    my ($self, $buffer, $source_revision_id, $file_name, $target_revision_id)
 	= @_;
 
-    my($i,
-       @lines);
+    my ($i,
+	@lines);
 
     # Run the command and get the data.
 
@@ -1616,7 +1624,7 @@ sub get_corresponding_path($$$$$)
 sub get_current_revision($$;$@)
 {
 
-    my($self, $ref, $options, @paths) = @_;
+    my ($self, $ref, $options, @paths) = @_;
 
     my @opts;
 
@@ -1677,7 +1685,7 @@ sub get_current_revision($$;$@)
 sub get_current_revision_id($$)
 {
 
-    my($self, $buffer) = @_;
+    my ($self, $buffer) = @_;
 
     my @list;
 
@@ -1713,7 +1721,7 @@ sub get_current_revision_id($$)
 sub get_db_variables($$;$)
 {
 
-    my($self, $ref, $domain) = @_;
+    my ($self, $ref, $domain) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -1725,40 +1733,45 @@ sub get_db_variables($$;$)
     else
     {
 
-	my($domain_name,
-	   $i,
-	   @lines,
-	   $name,
-	   $value);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command("get_db_variables", 1, 1, \@lines, $domain))
 	{
 	    return;
 	}
 
-	# Reformat the data into a structured array. We cannot use
-	# parse_kv_record here as we can have multiple `entry' fields in each
-	# record block.
+	# Reformat the data into a structured array.
 
 	for ($i = 0, @$ref = (); $i < scalar(@lines); ++ $i)
 	{
-	    if ($lines[$i] =~ m/^ *domain \"/)
+	    if ($lines[$i] =~ m/$io_stanza_re/)
 	    {
-		get_quoted_value(\@lines, \$i, \$domain_name);
-	    }
-	    if ($lines[$i] =~ m/^ *entry \"(.+)\"$/)
-	    {
-		($name, $value) = split(/\" \"/, $1);
-		if (defined($domain_name))
+		my $kv_record;
+
+		# Get the next key-value record.
+
+		parse_kv_record(\@lines,
+				\$i,
+				\%get_db_variables_keys,
+				\$kv_record);
+		-- $i;
+
+		# Validate it in terms of expected fields and copy data across
+		# to the correct fields.
+
+		if (! exists($kv_record->{domain})
+		    || ! exists($kv_record->{entry}))
 		{
-		    push(@$ref, {domain => unescape($domain_name),
-				 name   => unescape($name),
-				 value  => unescape($value)});
+		    &$croaker("Corrupt database variables list, expected "
+			      . "domain and entry fields but did not find "
+			      . "them");
 		}
-		else
+		foreach my $entry (@{$kv_record->{entry}})
 		{
-		    &$croaker("Corrupt variables list, expected domain field "
-			      . "but did not find it");
+		    push(@$ref, {domain => $kv_record->{domain},
+				 name   => $entry->[0],
+				 value  => $entry->[1]});
 		}
 	    }
 	}
@@ -1789,7 +1802,7 @@ sub get_db_variables($$;$)
 sub get_extended_manifest_of($$$)
 {
 
-    my($self, $ref, $revision_id) = @_;
+    my ($self, $ref, $revision_id) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -1805,8 +1818,8 @@ sub get_extended_manifest_of($$$)
     else
     {
 
-	my($i,
-	   @lines);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command("get_extended_manifest_of",
 				 0,
@@ -1833,6 +1846,15 @@ sub get_extended_manifest_of($$$)
 				\$kv_record);
 		-- $i;
 
+		# Validate it in terms of expected fields.
+
+		if (! exists($kv_record->{dir})
+		    && ! exists($kv_record->{file}))
+		{
+		    &$croaker("Corrupt extended manifest list, expected dir "
+			      . "or file field but did not find them");
+		}
+
 		# Set up the name and type fields.
 
 		if (exists($kv_record->{file}))
@@ -1853,42 +1875,32 @@ sub get_extended_manifest_of($$$)
 		if (exists($kv_record->{attr}))
 		{
 		    my $value = [];
-		    for my $entry (@{$kv_record->{attr}})
+		    foreach my $entry (@{$kv_record->{attr}})
 		    {
-			push(@$value,
-			     {attribute => $entry->[0],
-			      value     => $entry->[1]});
+			push(@$value, {attribute => $entry->[0],
+				       value     => $entry->[1]});
 		    }
-		    $kv_record->{attr} = $value;
+		    $kv_record->{attributes} = $value;
+		    delete($kv_record->{attr});
 		}
-		elsif (exists($kv_record->{attr_mark}))
+		if (exists($kv_record->{attr_mark}))
 		{
 		    my $value = [];
-		    for my $entry (@{$kv_record->{attr_mark}})
+		    foreach my $entry (@{$kv_record->{attr_mark}})
 		    {
-			push(@$value,
-			     {attribute   => $entry->[0],
-			      revision_id => $entry->[1]});
+			push(@$value, {attribute   => $entry->[0],
+				       revision_id => $entry->[1]});
 		    }
 		    $kv_record->{attr_mark} = $value;
 		}
-		elsif (exists($kv_record->{dormant_attr}))
+		if (exists($kv_record->{content}))
 		{
-		    if (ref($kv_record->{dormant_attr}) ne "ARRAY")
-		    {
-			$kv_record->{dormant_attr} =
-			    [$kv_record->{dormant_attr}];
-		    }
+		    $kv_record->{file_id} = $kv_record->{content};
+		    delete($kv_record->{content});
 		}
 
-		# Validate it in terms of expected fields and store.
+		# Store the record.
 
-		if (! exists($kv_record->{dir})
-		    && ! exists($kv_record->{file}))
-		{
-		    &$croaker("Corrupt extended manifest list, expected dir "
-			      . "or file field but did not find it");
-		}
 		push(@$ref, $kv_record);
 	    }
 	}
@@ -1920,7 +1932,7 @@ sub get_extended_manifest_of($$$)
 sub get_file($$$)
 {
 
-    my($self, $buffer, $file_id) = @_;
+    my ($self, $buffer, $file_id) = @_;
 
     return $self->mtn_command("get_file", 0, 0, $buffer, $file_id);
 
@@ -1949,7 +1961,7 @@ sub get_file($$$)
 sub get_file_of($$$;$)
 {
 
-    my($self, $buffer, $file_name, $revision_id) = @_;
+    my ($self, $buffer, $file_name, $revision_id) = @_;
 
     my @opts;
 
@@ -1986,7 +1998,7 @@ sub get_file_of($$$;$)
 sub get_file_size($$$)
 {
 
-    my($self, $buffer, $file_id) = @_;
+    my ($self, $buffer, $file_id) = @_;
 
     my @list;
 
@@ -2021,7 +2033,7 @@ sub get_file_size($$$)
 sub get_manifest_of($$;$)
 {
 
-    my($self, $ref, $revision_id) = @_;
+    my ($self, $ref, $revision_id) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -2033,14 +2045,8 @@ sub get_manifest_of($$;$)
     else
     {
 
-	my($attrs,
-	   $i,
-	   $id,
-	   $key,
-	   @lines,
-	   $name,
-	   $type,
-	   $value);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command("get_manifest_of",
 				 0,
@@ -2051,55 +2057,68 @@ sub get_manifest_of($$;$)
 	    return;
 	}
 
-	# Reformat the data into a structured array. We cannot use
-	# parse_kv_record here as we can have multiple `attr' fields in each
-	# record block.
+	# Reformat the data into a structured array.
 
 	for ($i = 0, @$ref = (); $i < scalar(@lines); ++ $i)
 	{
-	    $type = undef;
-	    if ($lines[$i] =~ m/^ *file \"/)
+	    if ($lines[$i] =~ m/$io_stanza_re/)
 	    {
-		$type = "file";
-		get_quoted_value(\@lines, \$i, \$name);
-		if ($lines[++ $i] =~ m/^ *content \[([0-9a-f]+)\]$/)
+		my $kv_record;
+
+		# Get the next key-value record.
+
+		parse_kv_record(\@lines,
+				\$i,
+				\%get_manifest_of_keys,
+				\$kv_record);
+		-- $i;
+
+		# Validate it in terms of expected fields and copy data across
+		# to the correct fields.
+
+		if (exists($kv_record->{file}) || exists($kv_record->{dir}))
 		{
-		    $id = $1;
-		}
-		else
-		{
-		    &$croaker("Corrupt manifest, expected content field but "
-			      . "did not find it");
-		}
-	    }
-	    if ($lines[$i] =~ m/^ *dir \"/)
-	    {
-		$type = "directory";
-		get_quoted_value(\@lines, \$i, \$name);
-	    }
-	    for ($attrs = [];
-		 ($i + 1) < scalar(@lines)
-		     && $lines[$i + 1] =~ m/^ *attr \"(.+)\"$/;)
-	    {
-		++ $i;
-		($key, $value) = split(/\" \"/, $1);
-		push(@$attrs, {attribute => unescape($key),
-			       value     => unescape($value)});
-	    }
-	    if (defined($type))
-	    {
-		if ($type eq "file")
-		{
-		    push(@$ref, {type       => $type,
-				 name       => unescape($name),
-				 file_id    => $id,
-				 attributes => $attrs});
-		}
-		else
-		{
-		    push(@$ref, {type       => $type,
-				 name       => unescape($name),
-				 attributes => $attrs});
+		    my ($attrs,
+			$id,
+			$name,
+			$type);
+
+		    if (exists($kv_record->{file}))
+		    {
+			$type = "file";
+			$name = $kv_record->{file};
+			&$croaker("Corrupt manifest, expected content field "
+				  . "but did not find it")
+			    unless (exists($kv_record->{content}));
+			$id = $kv_record->{content};
+		    }
+		    elsif (exists($kv_record->{dir}))
+		    {
+			$type = "directory";
+			$name = $kv_record->{dir};
+		    }
+		    $attrs = [];
+		    if (exists($kv_record->{attr}))
+		    {
+			foreach my $entry (@{$kv_record->{attr}})
+			{
+			    push(@$attrs, {attribute => $entry->[0],
+					   value     => $entry->[1]});
+			}
+		    }
+		    if ($type eq "file")
+		    {
+			push(@$ref, {type       => $type,
+				     name       => $name,
+				     file_id    => $id,
+				     attributes => $attrs});
+		    }
+		    else
+		    {
+			push(@$ref, {type       => $type,
+				     name       => $name,
+				     attributes => $attrs});
+		    }
 		}
 	    }
 	}
@@ -2130,7 +2149,7 @@ sub get_manifest_of($$;$)
 sub get_option($$$)
 {
 
-    my($self, $buffer, $option_name) = @_;
+    my ($self, $buffer, $option_name) = @_;
 
     if (! $self->mtn_command("get_option", 1, 1, $buffer, $option_name))
     {
@@ -2162,7 +2181,7 @@ sub get_option($$$)
 sub get_public_key($$$)
 {
 
-    my($self, $buffer, $key_id) = @_;
+    my ($self, $buffer, $key_id) = @_;
 
     return $self->mtn_command("get_public_key", 1, 1, $buffer, $key_id);
 
@@ -2189,7 +2208,7 @@ sub get_public_key($$$)
 sub get_revision($$$)
 {
 
-    my($self, $ref, $revision_id) = @_;
+    my ($self, $ref, $revision_id) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -2234,7 +2253,7 @@ sub get_revision($$$)
 sub get_workspace_root($$)
 {
 
-    my($self, $buffer) = @_;
+    my ($self, $buffer) = @_;
 
     if (! $self->mtn_command("get_workspace_root", 0, 1, $buffer))
     {
@@ -2264,7 +2283,7 @@ sub get_workspace_root($$)
 sub graph($$)
 {
 
-    my($self, $ref) = @_;
+    my ($self, $ref) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -2276,9 +2295,9 @@ sub graph($$)
     else
     {
 
-	my($i,
-	   @lines,
-	   @parent_ids);
+	my ($i,
+	    @lines,
+	    @parent_ids);
 
 	if (! $self->mtn_command("graph", 0, 0, \@lines))
 	{
@@ -2319,7 +2338,7 @@ sub graph($$)
 sub heads($$;$)
 {
 
-    my($self, $list, $branch_name) = @_;
+    my ($self, $list, $branch_name) = @_;
 
     return $self->mtn_command("heads", 1, 0, $list, $branch_name);
 
@@ -2345,7 +2364,7 @@ sub heads($$;$)
 sub identify($$$)
 {
 
-    my($self, $buffer, $file_name) = @_;
+    my ($self, $buffer, $file_name) = @_;
 
     my @list;
 
@@ -2378,7 +2397,7 @@ sub identify($$$)
 sub interface_version($$)
 {
 
-    my($self, $buffer) = @_;
+    my ($self, $buffer) = @_;
 
     my @list;
 
@@ -2418,7 +2437,7 @@ sub interface_version($$)
 sub inventory($$;$@)
 {
 
-    my($self, $ref, $options, @paths) = @_;
+    my ($self, $ref, $options, @paths) = @_;
 
     my @opts;
 
@@ -2476,11 +2495,6 @@ sub inventory($$;$@)
 				    \%inventory_keys,
 				    \$kv_record);
 		    -- $i;
-		    if (exists($kv_record->{birth}))
-		    {
-			$kv_record->{birth_id} = $kv_record->{birth};
-			delete($kv_record->{birth});
-		    }
 		    push(@$ref, $kv_record);
 		}
 	    }
@@ -2530,7 +2544,7 @@ sub inventory($$;$@)
 sub keys($$)
 {
 
-    my($self, $ref) = @_;
+    my ($self, $ref) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -2542,9 +2556,9 @@ sub keys($$)
     else
     {
 
-	my($i,
-	   @lines,
-	   @valid_fields);
+	my ($i,
+	    @lines,
+	    @valid_fields);
 
 	if (! $self->mtn_command("keys", 0, 1, \@lines))
 	{
@@ -2615,7 +2629,7 @@ sub keys($$)
 sub leaves($$)
 {
 
-    my($self, $list) = @_;
+    my ($self, $list) = @_;
 
     return $self->mtn_command("leaves", 0, 0, $list);
 
@@ -2645,7 +2659,7 @@ sub leaves($$)
 sub log($$;$$)
 {
 
-    my($self, $list, $options, $file_name) = @_;
+    my ($self, $list, $options, $file_name) = @_;
 
     my @opts;
 
@@ -2688,7 +2702,7 @@ sub log($$;$$)
 sub lua($$$;@)
 {
 
-    my($self, $buffer, $lua_function, @arguments) = @_;
+    my ($self, $buffer, $lua_function, @arguments) = @_;
 
     return $self->mtn_command("lua", 1, 1, $buffer, $lua_function, @arguments);
 
@@ -2715,7 +2729,7 @@ sub lua($$$;@)
 sub packet_for_fdata($$$)
 {
 
-    my($self, $buffer, $file_id) = @_;
+    my ($self, $buffer, $file_id) = @_;
 
     return $self->mtn_command("packet_for_fdata", 0, 0, $buffer, $file_id);
 
@@ -2745,7 +2759,7 @@ sub packet_for_fdata($$$)
 sub packet_for_fdelta($$$$)
 {
 
-    my($self, $buffer, $from_file_id, $to_file_id) = @_;
+    my ($self, $buffer, $from_file_id, $to_file_id) = @_;
 
     return $self->mtn_command("packet_for_fdelta",
 			      0,
@@ -2777,7 +2791,7 @@ sub packet_for_fdelta($$$$)
 sub packet_for_rdata($$$)
 {
 
-    my($self, $buffer, $revision_id) = @_;
+    my ($self, $buffer, $revision_id) = @_;
 
     return $self->mtn_command("packet_for_rdata", 0, 0, $buffer, $revision_id);
 
@@ -2804,7 +2818,7 @@ sub packet_for_rdata($$$)
 sub packets_for_certs($$$)
 {
 
-    my($self, $buffer, $revision_id) = @_;
+    my ($self, $buffer, $revision_id) = @_;
 
     return $self->mtn_command("packets_for_certs",
 			      0,
@@ -2834,7 +2848,7 @@ sub packets_for_certs($$$)
 sub parents($$$)
 {
 
-    my($self, $list, $revision_id) = @_;
+    my ($self, $list, $revision_id) = @_;
 
     return $self->mtn_command("parents", 0, 0, $list, $revision_id);
 
@@ -2865,7 +2879,7 @@ sub parents($$$)
 sub put_file($$$$)
 {
 
-    my($self, $buffer, $base_file_id, $contents) = @_;
+    my ($self, $buffer, $base_file_id, $contents) = @_;
 
     my @list;
 
@@ -2912,7 +2926,7 @@ sub put_file($$$$)
 sub put_public_key($$)
 {
 
-    my($self, $public_key) = @_;
+    my ($self, $public_key) = @_;
 
     my $dummy;
 
@@ -2940,7 +2954,7 @@ sub put_public_key($$)
 sub put_revision($$$)
 {
 
-    my($self, $buffer, $contents) = @_;
+    my ($self, $buffer, $contents) = @_;
 
     my @list;
 
@@ -2972,7 +2986,7 @@ sub put_revision($$$)
 sub read_packets($$)
 {
 
-    my($self, $packet_data) = @_;
+    my ($self, $packet_data) = @_;
 
     my $dummy;
 
@@ -2999,7 +3013,7 @@ sub read_packets($$)
 sub roots($$)
 {
 
-    my($self, $list) = @_;
+    my ($self, $list) = @_;
 
     return $self->mtn_command("roots", 0, 0, $list);
 
@@ -3025,7 +3039,7 @@ sub roots($$)
 sub select($$$)
 {
 
-    my($self, $list, $selector) = @_;
+    my ($self, $list, $selector) = @_;
 
     return $self->mtn_command("select", 1, 0, $list, $selector);
 
@@ -3052,7 +3066,7 @@ sub select($$$)
 sub set_attribute($$$$)
 {
 
-    my($self, $path, $key, $value) = @_;
+    my ($self, $path, $key, $value) = @_;
 
     my $dummy;
 
@@ -3085,10 +3099,10 @@ sub set_attribute($$$$)
 sub set_db_variable($$$$)
 {
 
-    my($self, $domain, $name, $value) = @_;
+    my ($self, $domain, $name, $value) = @_;
 
-    my($cmd,
-       $dummy);
+    my ($cmd,
+	$dummy);
 
     # This command was renamed in version 0.39 (i/f version 7.x).
 
@@ -3131,7 +3145,7 @@ sub set_db_variable($$$$)
 sub show_conflicts($$;$$$)
 {
 
-    my($self, $ref, $branch, $left_revision_id, $right_revision_id) = @_;
+    my ($self, $ref, $branch, $left_revision_id, $right_revision_id) = @_;
 
     my @opts;
     my $this = $class_records{$self->{$class_name}};
@@ -3178,8 +3192,8 @@ sub show_conflicts($$;$$$)
     else
     {
 
-	my($i,
-	   @lines);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command_with_options("show_conflicts",
 					      1,
@@ -3252,11 +3266,10 @@ sub show_conflicts($$;$$$)
 sub sync($$;$$)
 {
 
-    my($self, $ref, $options, $uri) = @_;
+    my ($self, $ref, $options, $uri) = @_;
 
-    my($cmd,
-       @opts,
-       @trailing_args);
+    my ($cmd,
+	@opts);
 
     # Find out how we were called (and hence the command that is to be run).
     # Remember that the routine name will be fully qualified.
@@ -3268,17 +3281,6 @@ sub sync($$;$$)
 
     expand_options($options, \@opts);
 
-    # Work out what the trailing arguments should be.
-
-    if (defined($uri))
-    {
-	@trailing_args = (\@opts, $uri);
-    }
-    else
-    {
-	@trailing_args = (\@opts);
-    }
-
     # Run the command and get the data, either as one lump or as a structured
     # list.
 
@@ -3288,19 +3290,21 @@ sub sync($$;$$)
 					       1,
 					       1,
 					       $ref,
-					       @trailing_args);
+					       \@opts,
+					       $uri);
     }
     else
     {
 
-	my($i,
-	   @lines);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command_with_options($cmd,
 					      1,
 					      1,
 					      \@lines,
-					      @trailing_args))
+					      \@opts,
+					      $uri))
 	{
 	    return;
 	}
@@ -3354,7 +3358,7 @@ sub sync($$;$$)
 sub tags($$;$)
 {
 
-    my($self, $ref, $branch_pattern) = @_;
+    my ($self, $ref, $branch_pattern) = @_;
 
     # Run the command and get the data, either as one lump or as a structured
     # list.
@@ -3366,8 +3370,8 @@ sub tags($$;$)
     else
     {
 
-	my($i,
-	   @lines);
+	my ($i,
+	    @lines);
 
 	if (! $self->mtn_command("tags", 1, 1, \@lines, $branch_pattern))
 	{
@@ -3435,7 +3439,7 @@ sub tags($$;$)
 sub toposort($$@)
 {
 
-    my($self, $list, @revision_ids) = @_;
+    my ($self, $list, @revision_ids) = @_;
 
     return $self->mtn_command("toposort", 0, 0, $list, @revision_ids);
 
@@ -3462,10 +3466,10 @@ sub toposort($$@)
 sub update($;$)
 {
 
-    my($self, $options) = @_;
+    my ($self, $options) = @_;
 
-    my($dummy,
-       @opts);
+    my ($dummy,
+	@opts);
 
     # Process any options.
 
@@ -3781,7 +3785,7 @@ sub get_ws_path($)
 sub ignore_suspend_certs($$)
 {
 
-    my($self, $ignore) = @_;
+    my ($self, $ignore) = @_;
 
     my $this = $class_records{$self->{$class_name}};
 
@@ -3843,8 +3847,8 @@ sub ignore_suspend_certs($$)
 sub register_db_locked_handler(;$$$)
 {
 
-    my($self,
-       $this);
+    my ($self,
+	$this);
     if ($_[0]->isa(__PACKAGE__))
     {
 	if (ref($_[0]) ne "")
@@ -3857,7 +3861,7 @@ sub register_db_locked_handler(;$$$)
 	    shift();
 	}
     }
-    my($handler, $client_data) = @_;
+    my ($handler, $client_data) = @_;
 
     if (defined($self))
     {
@@ -3917,7 +3921,7 @@ sub register_error_handler($;$$$)
 {
 
     shift() if ($_[0]->isa(__PACKAGE__));
-    my($severity, $handler, $client_data) = @_;
+    my ($severity, $handler, $client_data) = @_;
 
     if ($severity == MTN_SEVERITY_ERROR)
     {
@@ -4003,8 +4007,8 @@ sub register_error_handler($;$$$)
 sub register_io_wait_handler(;$$$$)
 {
 
-    my($self,
-       $this);
+    my ($self,
+	$this);
     if ($_[0]->isa(__PACKAGE__))
     {
 	if (ref($_[0]) ne "")
@@ -4017,7 +4021,7 @@ sub register_io_wait_handler(;$$$$)
 	    shift();
 	}
     }
-    my($handler, $timeout, $client_data) = @_;
+    my ($handler, $timeout, $client_data) = @_;
 
     if (defined($timeout))
     {
@@ -4089,7 +4093,7 @@ sub register_io_wait_handler(;$$$$)
 sub register_stream_handle($$$)
 {
 
-    my($self, $stream, $handle) = @_;
+    my ($self, $stream, $handle) = @_;
 
     my $this = $class_records{$self->{$class_name}};
 
@@ -4136,7 +4140,7 @@ sub register_stream_handle($$$)
 sub supports($$)
 {
 
-    my($self, $feature) = @_;
+    my ($self, $feature) = @_;
 
     my $this = $class_records{$self->{$class_name}};
 
@@ -4303,8 +4307,8 @@ sub supports($$)
 sub suppress_utf8_conversion($$)
 {
 
-    my($self,
-       $this);
+    my ($self,
+	$this);
     if ($_[0]->isa(__PACKAGE__))
     {
 	if (ref($_[0]) ne "")
@@ -4355,8 +4359,8 @@ sub suppress_utf8_conversion($$)
 sub switch_to_ws_root($$)
 {
 
-    my($self,
-       $this);
+    my ($self,
+	$this);
     if ($_[0]->isa(__PACKAGE__))
     {
 	if (ref($_[0]) ne "")
@@ -4424,7 +4428,7 @@ sub switch_to_ws_root($$)
 sub parse_revision_data($$)
 {
 
-    my($list, $data) = @_;
+    my ($list, $data) = @_;
 
     my $i;
 
@@ -4555,12 +4559,12 @@ sub parse_revision_data($$)
 sub parse_kv_record($$$$;$)
 {
 
-    my($list, $index, $key_type_map, $record, $no_errors) = @_;
+    my ($list, $index, $key_type_map, $record, $no_errors) = @_;
 
-    my($i,
-       $key,
-       $type,
-       $value);
+    my ($i,
+	$key,
+	$type,
+	$value);
 
     # Process a line at a time whilst we are looking at an IO stanza record.
 
@@ -4626,20 +4630,18 @@ sub parse_kv_record($$$$;$)
 			  . "detected");
 	    }
 
-	    # Store the value in the record. If we have a key of the same name
-	    # in the record already then turn its value into a list of values
-	    # if it hasn't been done already.
+	    # Store the value in the record. If its non-unique then store the
+	    # values in a list, otherwise just store it normally.
 
-	    if (exists($$record->{$key}))
+	    if ($type & NON_UNIQUE)
 	    {
-		if (ref($$record->{$key}) eq "ARRAY")
+		if (exists($$record->{$key}))
 		{
 		    push(@{$$record->{$key}}, $value);
 		}
 		else
 		{
-		    my $tmp_value = $$record->{$key};
-		    $$record->{$key} = [$tmp_value, $value];
+		    $$record->{$key} = [$value];
 		}
 	    }
 	    else
@@ -4695,7 +4697,7 @@ sub parse_kv_record($$$$;$)
 sub mtn_command($$$$$;@)
 {
 
-    my($self, $cmd, $out_as_utf8, $in_as_utf8, $ref, @parameters) = @_;
+    my ($self, $cmd, $out_as_utf8, $in_as_utf8, $ref, @parameters) = @_;
 
     return $self->mtn_command_with_options($cmd,
 					   $out_as_utf8,
@@ -4745,18 +4747,18 @@ sub mtn_command($$$$$;@)
 sub mtn_command_with_options($$$$$$;@)
 {
 
-    my($self, $cmd, $out_as_utf8, $in_as_utf8, $ref, $options, @parameters)
+    my ($self, $cmd, $out_as_utf8, $in_as_utf8, $ref, $options, @parameters)
 	= @_;
 
-    my($buffer,
-       $buffer_ref,
-       $db_locked_exception,
-       $handler,
-       $handler_data,
-       $opt,
-       $param,
-       $read_ok,
-       $retry);
+    my ($buffer,
+	$buffer_ref,
+	$db_locked_exception,
+	$handler,
+	$handler_data,
+	$opt,
+	$param,
+	$read_ok,
+	$retry);
     my $this = $class_records{$self->{$class_name}};
 
     # Work out whether UTF-8 conversion is to be done at all.
@@ -4811,10 +4813,10 @@ sub mtn_command_with_options($$$$$$;@)
 	    $this->{mtn_in}->print("o");
 	    foreach $opt (@$options)
 	    {
-		my($key,
-		   $key_ref,
-		   $value,
-		   $value_ref);
+		my ($key,
+		    $key_ref,
+		    $value,
+		    $value_ref);
 		if ($out_as_utf8)
 		{
 		    $key = encode_utf8($opt->{key});
@@ -4846,8 +4848,8 @@ sub mtn_command_with_options($$$$$$;@)
 
 	    if (defined $param)
 	    {
-		my($data,
-		   $param_ref);
+		my ($data,
+		    $param_ref);
 		if (ref($param) ne "")
 		{
 		    if ($out_as_utf8)
@@ -4987,23 +4989,23 @@ sub mtn_command_with_options($$$$$$;@)
 sub mtn_read_output_format_1($$)
 {
 
-    my($self, $buffer) = @_;
+    my ($self, $buffer) = @_;
 
-    my($bytes_read,
-       $char,
-       $chunk_start,
-       $cmd_nr,
-       $colons,
-       $err_code,
-       $err_occurred,
-       $handler,
-       $handler_data,
-       $handler_timeout,
-       $header,
-       $i,
-       $last,
-       $offset,
-       $size);
+    my ($bytes_read,
+	$char,
+	$chunk_start,
+	$cmd_nr,
+	$colons,
+	$err_code,
+	$err_occurred,
+	$handler,
+	$handler_data,
+	$handler_timeout,
+	$header,
+	$i,
+	$last,
+	$offset,
+	$size);
     my $this = $class_records{$self->{$class_name}};
 
     # Work out what I/O wait handler is to be used.
@@ -5155,24 +5157,24 @@ sub mtn_read_output_format_1($$)
 sub mtn_read_output_format_2($$)
 {
 
-    my($self, $buffer) = @_;
+    my ($self, $buffer) = @_;
 
-    my($bytes_read,
-       $buffer_ref,
-       $char,
-       $chunk_start,
-       $cmd_nr,
-       $colons,
-       $err_code,
-       $err_occurred,
-       $handler,
-       $handler_data,
-       $handler_timeout,
-       $header,
-       $i,
-       $offset_ref,
-       $size,
-       $stream);
+    my ($bytes_read,
+	$buffer_ref,
+	$char,
+	$chunk_start,
+	$cmd_nr,
+	$colons,
+	$err_code,
+	$err_occurred,
+	$handler,
+	$handler_data,
+	$handler_timeout,
+	$header,
+	$i,
+	$offset_ref,
+	$size,
+	$stream);
     my $this = $class_records{$self->{$class_name}};
     my %details = (e => {buffer_ref => undef,
 			 offset     => 0},
@@ -5440,15 +5442,15 @@ sub startup($)
     if ($this->{mtn_pid} == 0)
     {
 
-	my(@args,
-	   $cwd,
-	   $file,
-	   $exception,
-	   $header_err,
-	   $line,
-	   $my_pid,
-	   $startup,
-	   $version);
+	my (@args,
+	    $cwd,
+	    $file,
+	    $exception,
+	    $header_err,
+	    $line,
+	    $my_pid,
+	    $startup,
+	    $version);
 
 	# Deep recursion guard.
 
@@ -5561,7 +5563,7 @@ sub startup($)
 		}
 		elsif ($line =~ m/^monotone (\d+\.\d+)([\d.]+)(dev)? ./)
 		{
-		    my($first_part, $second_part) = ($1, $2);
+		    my ($first_part, $second_part) = ($1, $2);
 		    $second_part =~ s/\.//g;
 		    $mtn_version = $first_part . $second_part;
 		}
@@ -5578,8 +5580,8 @@ sub startup($)
 	if ($mtn_version > 0.45)
 	{
 
-	    my($char,
-	       $last_char);
+	    my ($char,
+		$last_char);
 
 	    # If we are connecting to a network service then make sure that it
 	    # has sent us something before doing a blocking read.
@@ -5697,14 +5699,14 @@ sub startup($)
 sub get_ws_details($$$)
 {
 
-    my($ws_path, $db_name, $ws_base) = @_;
+    my ($ws_path, $db_name, $ws_base) = @_;
 
-    my($i,
-       @lines,
-       $options_fh,
-       $options_file,
-       $path,
-       $record);
+    my ($i,
+	@lines,
+	$options_fh,
+	$options_file,
+	$path,
+	$record);
 
     # Find the workspace's base directory.
 
@@ -5756,8 +5758,8 @@ sub validate_database($)
 
     my $db_name = $_[0];
 
-    my($buffer,
-       $db);
+    my ($buffer,
+	$db);
 
     # Open the database.
 
@@ -5916,7 +5918,7 @@ sub create_object($)
 sub expand_options($$)
 {
 
-    my($options, $expanded_options) = @_;
+    my ($options, $expanded_options) = @_;
 
     # Process any options.
 
@@ -5964,7 +5966,7 @@ sub expand_options($$)
 sub get_quoted_value($$$)
 {
 
-    my($list, $index, $buffer) = @_;
+    my ($list, $index, $buffer) = @_;
 
     # Deal with multiple lines.
 
