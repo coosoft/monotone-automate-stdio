@@ -4941,13 +4941,6 @@ sub mtn_command_with_options($$$$$$;@)
             {
                 $$buffer_ref = decode_utf8($$buffer_ref, Encode::FB_CROAK);
             };
-            if ($@)
-            {
-                $this->{error_msg} = "The output from Monotone was not UTF-8 "
-                    . "encoded as expected";
-                &$carper($this->{error_msg});
-                return;
-            }
         }
         elsif (! $read_ok)
         {
