@@ -6,7 +6,7 @@ Monotone::AutomateStdio - Perl interface to Monotone via automate stdio
 
 =head1 VERSION
 
-1.01
+1.02
 
 =head1 SYNOPSIS
 
@@ -57,8 +57,8 @@ Creates a new Monotone::AutomateStdio object, using the database named in $db.
 [\@options])>
 
 Creates a new Monotone::AutomateStdio object, using the named network service
-(which is expressed as a hostname optionally followed by a colon and a port
-number).
+(which is expressed as either a Monotone style URL or a host name optionally
+followed by a colon and the port number).
 
 (feature: MTN_REMOTE_CONNECTIONS)
 
@@ -656,7 +656,7 @@ type of entry:
         attribute - The name of the attribute that was set.
         value     - The value that the attribute was set to.
 
-=item B<$mtn-E<gt>get_db_name()>
+=item B<$mtn-E<gt>get_service_name()>
 
 Return the service name of the Monotone server as given to the constructor.
 

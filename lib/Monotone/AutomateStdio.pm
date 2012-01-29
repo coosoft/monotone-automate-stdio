@@ -505,7 +505,7 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
                                         MTN_T_STREAM)]);
 our @EXPORT = qw();
 Exporter::export_ok_tags(qw(capabilities severities streams));
-our $VERSION = "1.01";
+our $VERSION = "1.02";
 #
 ##############################################################################
 #
@@ -582,8 +582,9 @@ sub new_from_db($;$$)
 #   Data         - $class       : Either the name of the class that is to be
 #                                 created or an object of that class.
 #                  $service     : The name of the Monotone server to connect
-#                                 to, optionally followed by a colon and the
-#                                 port number.
+#                                 to, either in the form of a Monotone style
+#                                 URL or a host name optionally followed by a
+#                                 colon and the port number.
 #                  $options     : A reference to a list containing a list of
 #                                 options to use on the mtn subprocess.
 #                  Return Value : A reference to the newly created object.
@@ -609,16 +610,43 @@ sub new_from_service($$;$)
 
     validate_mtn_options($options);
 
-    # Check that the server is know to us.
+    # Check the service name, either a Monotone style URL or server name
+    # followed by an optional colon and port number.
 
-    if ($service =~ m/^([^:]+):\d+$/)
+    if ($service =~ m/\//)
     {
-        $server = $1;
+
+        # A URL has been given so extract the host name.
+
+        if ($service =~ m/^(?:mtn:\/\/)?([^\/]+)(?:\/.*)?$/)
+        {
+            $server = $1;
+        }
+        else
+        {
+            &$croaker("Invalid URL `" . $service . "'.");
+        }
+
     }
     else
     {
-        $server = $service;
+
+        # A hostname and optional port number has been given so extract the
+        # host name part.
+
+        if ($service =~ m/^([^:]+):\d+$/)
+        {
+            $server = $1;
+        }
+        else
+        {
+            $server = $service;
+        }
+
     }
+
+    # Check that the hostname is know to us.
+
     &$croaker("`" . $server . "' is not known to the system")
         unless (defined(inet_aton($server)));
 

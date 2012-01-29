@@ -1,5 +1,10 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+1.02  Sat Jan 28 17:25:00 2012 Anthony Cooper <support@coosoft.plus.com>
+	- The new_from_service() contructor now allows Monotone style URLs as
+	  well as <host>[:<port>] server names.
+	- Updated the documentation and corrected a few typos.
+
 1.01  Sat Jul 2 18:00:00 2011 Anthony Cooper <support@coosoft.plus.com>
 	- Removed tabs in the test script. Forgot to do this before.
 	- Be less stringent about UTF-8 convertion failures.
