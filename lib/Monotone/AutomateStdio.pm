@@ -3667,7 +3667,7 @@ sub get_db_name($)
 
     my $this = $class_records{$self->{$class_name}};
 
-    if (defined($this->{dn_name}) && $this->{db_name} eq IN_MEMORY_DB_NAME)
+    if (defined($this->{db_name}) && $this->{db_name} eq IN_MEMORY_DB_NAME)
     {
         return undef;
     }
@@ -5523,8 +5523,8 @@ sub startup($)
         # that any subsequent chdir(2) call does not prevent opening the
         # correct database.
 
-        $this->{dn_name} = File::Spec->rel2abs($this->{dn_name})
-            if (defined($this->{dn_name}));
+        $this->{db_name} = File::Spec->rel2abs($this->{db_name})
+            if (defined($this->{db_name}));
 
         # Build up a list of command line arguments to pass to the mtn
         # subprocess.
