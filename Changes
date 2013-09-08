@@ -1,5 +1,20 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+1.03  Sat Sep 07 18:58:00 2013 Anthony Cooper <support@coosoft.plus.com>
+	- Only prepend the database name with its full path when dealing with a
+	  disk based database and not a memory based one as used when
+	  connecting to remote databases.
+	- Renamed the dn_name field to the correct db_name. This means that any
+	  database names that are specified with a relative path correctly get
+	  converted to their absolute path name.
+	- All constructors now only honour <Class Name>->new() and not
+	  <Object>->new() as well. This makes the code cleaner and is less
+	  confusing to the caller as the object way of calling the constructor
+	  could be misinterpreted as some sort of clone method (which it
+	  isn't).
+	- The workspace name is now correctly used when throwing an invalid
+	  workspace exception.
+
 1.02  Sat Jan 28 17:25:00 2012 Anthony Cooper <support@coosoft.plus.com>
 	- The new_from_service() contructor now allows Monotone style URLs as
 	  well as <host>[:<port>] server names.
