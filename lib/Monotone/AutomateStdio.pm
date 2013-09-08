@@ -5519,12 +5519,13 @@ sub startup($)
         $this->{db_is_locked} = undef;
         $this->{mtn_err} = gensym();
 
-        # If we have a database name then convert it to an absolute path so
-        # that any subsequent chdir(2) call does not prevent opening the
-        # correct database.
+        # If we have a disk based database name then convert it to an absolute
+        # path so that any subsequent chdir(2) call does not prevent opening
+        # the correct database.
 
         $this->{db_name} = File::Spec->rel2abs($this->{db_name})
-            if (defined($this->{db_name}));
+            if (defined($this->{db_name})
+                && ! defined($this->{network_service}));
 
         # Build up a list of command line arguments to pass to the mtn
         # subprocess.
