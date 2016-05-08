@@ -6,7 +6,7 @@ Monotone::AutomateStdio - Perl interface to Monotone via automate stdio
 
 =head1 VERSION
 
-1.03
+1.10
 
 =head1 SYNOPSIS
 
@@ -36,7 +36,7 @@ $mtn-E<gt>closedown() is called.
 All automate commands have been implemented in this class except for the
 `stdio' command, hopefully the reason is obvious :-). Versions of Monotone that
 are supported by this class range from 0.35 up to and including the latest
-version (currently 1.00). If you happen to be using a newer version of Monotone
+version (currently 1.10). If you happen to be using a newer version of Monotone
 then this class will hopefully largely work but without the support for new or
 changed features.
 
@@ -399,6 +399,13 @@ form of a name or hash id).
 For a given list of revisions, weed out those that are ancestors to other
 revisions specified within the list.
 
+=item B<$mtn-E<gt>erase_descendants(\@list[, $revision_id ...])>
+
+For a given list of revisions, weed out those that are descendants to other
+revisions specified within the list.
+
+(feature: MTN_ERASE_DESCENDANTS)
+
 =item B<$mtn-E<gt>file_merge(\$buffer, $left_revision_id, $left_file_name,
 $right_revision_id, $right_file_name)>
 
@@ -439,17 +446,23 @@ Also known as $mtn-E<gt>genkey().
 
 (feature: MTN_GENERATE_KEY)
 
-=item B<$mtn-E<gt>get_attributes(\$buffer | \@list, $file_name)>
+=item B<$mtn-E<gt>get_attributes(\$buffer | \@list, $file_name[,
+$revision_id])>
 
-Get the attributes of the specified file. If \$buffer is passed then the output
-from the command is simply placed into the variable. However if \@list is
-passed then the output is returned as a list of anonymous hashes, each one
-containing the following fields:
+Get the attributes of the specified file under the specified revision. If the
+revision id is undefined then the current workspace revision is used. If
+\$buffer is passed then the output from the command is simply placed into the
+variable. However if \@list is passed then the output is returned as a list of
+anonymous hashes, each one containing the following fields:
 
     attribute - The name of the attribute.
     value     - The value of the attribute.
     state     - The status of the attribute. Values can be one of
                 "added", "changed", "dropped" or "unchanged".
+
+The ability to specify a revision id, thus being able to call this method
+outside of a workspace, was introduced in Monotone version 13.1 (feature:
+MTN_GET_ATTRIBUTES_TAKING_OPTIONS).
 
 Also known as $mtn-E<gt>attributes().
 
@@ -1062,9 +1075,11 @@ that is currently being used by this object. The list of valid features are:
     MTN_DROP_ATTRIBUTE
     MTN_DROP_DB_VARIABLES
     MTN_DROP_PUBLIC_KEY
+    MTN_ERASE_DESCENDANTS
     MTN_FILE_MERGE
     MTN_GENERATE_KEY
     MTN_GET_ATTRIBUTES
+    MTN_GET_ATTRIBUTES_TAKING_OPTIONS
     MTN_GET_CURRENT_REVISION
     MTN_GET_DB_VARIABLES
     MTN_GET_EXTENDED_MANIFEST_OF
@@ -1085,6 +1100,8 @@ that is currently being used by this object. The list of valid features are:
     MTN_READ_PACKETS
     MTN_REMOTE_CONNECTIONS
     MTN_SELECTOR_FUNCTIONS
+    MTN_SELECTOR_MIN_FUNCTION
+    MTN_SELECTOR_NOT_FUNCTION
     MTN_SELECTOR_OR_OPERATOR
     MTN_SET_ATTRIBUTE
     MTN_SET_DB_VARIABLE

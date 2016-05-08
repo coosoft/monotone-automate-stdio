@@ -80,39 +80,43 @@ use constant MTN_DB_GET                        => 3;
 use constant MTN_DROP_ATTRIBUTE                => 4;
 use constant MTN_DROP_DB_VARIABLES             => 5;
 use constant MTN_DROP_PUBLIC_KEY               => 6;
-use constant MTN_FILE_MERGE                    => 7;
-use constant MTN_GENERATE_KEY                  => 8;
-use constant MTN_GET_ATTRIBUTES                => 9;
-use constant MTN_GET_CURRENT_REVISION          => 10;
-use constant MTN_GET_DB_VARIABLES              => 11;
-use constant MTN_GET_EXTENDED_MANIFEST_OF      => 12;
-use constant MTN_GET_FILE_SIZE                 => 13;
-use constant MTN_GET_PUBLIC_KEY                => 14;
-use constant MTN_GET_WORKSPACE_ROOT            => 15;
-use constant MTN_HASHED_SIGNATURES             => 16;
-use constant MTN_IGNORING_OF_SUSPEND_CERTS     => 17;
-use constant MTN_INVENTORY_IN_IO_STANZA_FORMAT => 18;
-use constant MTN_INVENTORY_TAKING_OPTIONS      => 19;
-use constant MTN_INVENTORY_WITH_BIRTH_ID       => 20;
-use constant MTN_K_SELECTOR                    => 21;
-use constant MTN_LOG                           => 22;
-use constant MTN_LUA                           => 23;
-use constant MTN_M_SELECTOR                    => 24;
-use constant MTN_P_SELECTOR                    => 25;
-use constant MTN_PUT_PUBLIC_KEY                => 26;
-use constant MTN_READ_PACKETS                  => 27;
-use constant MTN_REMOTE_CONNECTIONS            => 28;
-use constant MTN_SELECTOR_FUNCTIONS            => 29;
-use constant MTN_SELECTOR_OR_OPERATOR          => 30;
-use constant MTN_SET_ATTRIBUTE                 => 31;
-use constant MTN_SET_DB_VARIABLE               => 32;
-use constant MTN_SHOW_CONFLICTS                => 33;
-use constant MTN_STREAM_IO                     => 34;
-use constant MTN_SYNCHRONISATION               => 35;
-use constant MTN_SYNCHRONISATION_WITH_OUTPUT   => 36;
-use constant MTN_U_SELECTOR                    => 37;
-use constant MTN_UPDATE                        => 38;
-use constant MTN_W_SELECTOR                    => 39;
+use constant MTN_ERASE_DESCENDANTS             => 7;
+use constant MTN_FILE_MERGE                    => 8;
+use constant MTN_GENERATE_KEY                  => 9;
+use constant MTN_GET_ATTRIBUTES                => 10;
+use constant MTN_GET_ATTRIBUTES_TAKING_OPTIONS => 11;
+use constant MTN_GET_CURRENT_REVISION          => 12;
+use constant MTN_GET_DB_VARIABLES              => 13;
+use constant MTN_GET_EXTENDED_MANIFEST_OF      => 14;
+use constant MTN_GET_FILE_SIZE                 => 15;
+use constant MTN_GET_PUBLIC_KEY                => 16;
+use constant MTN_GET_WORKSPACE_ROOT            => 17;
+use constant MTN_HASHED_SIGNATURES             => 18;
+use constant MTN_IGNORING_OF_SUSPEND_CERTS     => 19;
+use constant MTN_INVENTORY_IN_IO_STANZA_FORMAT => 20;
+use constant MTN_INVENTORY_TAKING_OPTIONS      => 21;
+use constant MTN_INVENTORY_WITH_BIRTH_ID       => 22;
+use constant MTN_K_SELECTOR                    => 23;
+use constant MTN_LOG                           => 24;
+use constant MTN_LUA                           => 25;
+use constant MTN_M_SELECTOR                    => 26;
+use constant MTN_P_SELECTOR                    => 27;
+use constant MTN_PUT_PUBLIC_KEY                => 28;
+use constant MTN_READ_PACKETS                  => 29;
+use constant MTN_REMOTE_CONNECTIONS            => 30;
+use constant MTN_SELECTOR_FUNCTIONS            => 31;
+use constant MTN_SELECTOR_MIN_FUNCTION         => 32;
+use constant MTN_SELECTOR_NOT_FUNCTION         => 33;
+use constant MTN_SELECTOR_OR_OPERATOR          => 34;
+use constant MTN_SET_ATTRIBUTE                 => 35;
+use constant MTN_SET_DB_VARIABLE               => 36;
+use constant MTN_SHOW_CONFLICTS                => 37;
+use constant MTN_STREAM_IO                     => 38;
+use constant MTN_SYNCHRONISATION               => 39;
+use constant MTN_SYNCHRONISATION_WITH_OUTPUT   => 40;
+use constant MTN_U_SELECTOR                    => 41;
+use constant MTN_UPDATE                        => 42;
+use constant MTN_W_SELECTOR                    => 43;
 
 # Constants used to represent the different error levels.
 
@@ -366,9 +370,10 @@ sub drop_attribute($$$);
 sub drop_db_variables($$;$);
 sub drop_public_key($$);
 sub erase_ancestors($$;@);
+sub erase_descendants($$;@);
 sub file_merge($$$$$$);
 sub generate_key($$$$);
-sub get_attributes($$$);
+sub get_attributes($$$;$);
 sub get_base_revision_id($$);
 sub get_content_changed($$$$);
 sub get_corresponding_path($$$$$);
@@ -465,9 +470,11 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
                                         MTN_DROP_ATTRIBUTE
                                         MTN_DROP_DB_VARIABLES
                                         MTN_DROP_PUBLIC_KEY
+                                        MTN_ERASE_DESCENDANTS
                                         MTN_FILE_MERGE
                                         MTN_GENERATE_KEY
                                         MTN_GET_ATTRIBUTES
+                                        MTN_GET_ATTRIBUTES_TAKING_OPTIONS
                                         MTN_GET_CURRENT_REVISION
                                         MTN_GET_DB_VARIABLES
                                         MTN_GET_EXTENDED_MANIFEST_OF
@@ -488,6 +495,8 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
                                         MTN_READ_PACKETS
                                         MTN_REMOTE_CONNECTIONS
                                         MTN_SELECTOR_FUNCTIONS
+                                        MTN_SELECTOR_MIN_FUNCTION
+                                        MTN_SELECTOR_NOT_FUNCTION
                                         MTN_SELECTOR_OR_OPERATOR
                                         MTN_SET_ATTRIBUTE
                                         MTN_SET_DB_VARIABLE
@@ -505,7 +514,7 @@ our %EXPORT_TAGS = (capabilities => [qw(MTN_CHECKOUT
                                         MTN_T_STREAM)]);
 our @EXPORT = qw();
 Exporter::export_ok_tags(qw(capabilities severities streams));
-our $VERSION = "1.03";
+our $VERSION = "1.10";
 #
 ##############################################################################
 #
@@ -1253,7 +1262,7 @@ sub drop_public_key($$)
 #                  $list         : A reference to a list that is to contain
 #                                  the revision ids.
 #                  @revision_ids : The revision ids that are to have their
-#                                  descendents returned.
+#                                  ancestors removed from the list.
 #                  Return Value  : True on success, otherwise false on
 #                                  failure.
 #
@@ -1267,6 +1276,34 @@ sub erase_ancestors($$;@)
     my ($self, $list, @revision_ids) = @_;
 
     return $self->mtn_command("erase_ancestors", 0, 0, $list, @revision_ids);
+
+}
+#
+##############################################################################
+#
+#   Routine      - erase_descendants
+#
+#   Description  - For a given list of revisions, weed out those that are
+#                  descendants to other revisions specified within the list.
+#
+#   Data         - $self         : The object.
+#                  $list         : A reference to a list that is to contain
+#                                  the revision ids.
+#                  @revision_ids : The revision ids that are to have their
+#                                  descendents removed from the list.
+#                  Return Value  : True on success, otherwise false on
+#                                  failure.
+#
+##############################################################################
+
+
+
+sub erase_descendants($$;@)
+{
+
+    my ($self, $list, @revision_ids) = @_;
+
+    return $self->mtn_command("erase_descendants", 0, 0, $list, @revision_ids);
 
 }
 #
@@ -1393,25 +1430,30 @@ sub generate_key($$$$)
 #
 #   Routine      - get_attributes
 #
-#   Description  - Get the attributes of the specified file.
+#   Description  - Get the attributes of the specified file under the
+#                  specified revision. If the revision id is undefined then
+#                  the current workspace revision is used.
 #
 #   Data         - $self        : The object.
 #                  $ref         : A reference to a buffer or an array that is
 #                                 to contain the output from this command.
 #                  $file_name   : The name of the file that is to be reported
 #                                 on.
+#                  $revision_id : The revision id upon which the file
+#                                 attributes are to be based.
 #                  Return Value : True on success, otherwise false on failure.
 #
 ##############################################################################
 
 
 
-sub get_attributes($$$)
+sub get_attributes($$$;$)
 {
 
-    my ($self, $ref, $file_name) = @_;
+    my ($self, $ref, $file_name, $revision_id) = @_;
 
-    my $cmd;
+    my ($cmd,
+        @opts);
 
     # This command was renamed in version 0.36 (i/f version 5.x).
 
@@ -1424,12 +1466,22 @@ sub get_attributes($$$)
         $cmd = "attributes";
     }
 
+    # Deal with the optional revision id option.
+
+    push(@opts, {key => "r", value => $revision_id})
+        if (defined($revision_id));
+
     # Run the command and get the data, either as one lump or as a structured
     # list.
 
     if (ref($ref) eq "SCALAR")
     {
-        return $self->mtn_command($cmd, 1, 1, $ref, $file_name);
+        return $self->mtn_command_with_options($cmd,
+                                               1,
+                                               1,
+                                               $ref,
+                                               \@opts,
+                                               $file_name);
     }
     else
     {
@@ -1437,7 +1489,12 @@ sub get_attributes($$$)
         my ($i,
             @lines);
 
-        if (! $self->mtn_command($cmd, 1, 1, \@lines, $file_name))
+        if (! $self->mtn_command_with_options($cmd,
+                                              1,
+                                              1,
+                                              \@lines,
+                                              \@opts,
+                                              $file_name))
         {
             return;
         }
@@ -4302,6 +4359,17 @@ sub supports($$)
         return 1 if ($this->{mtn_aif_version} >= 13);
 
     }
+    elsif ($feature == MTN_ERASE_DESCENDANTS
+           || $feature == MTN_GET_ATTRIBUTES_TAKING_OPTIONS
+           || $feature == MTN_SELECTOR_MIN_FUNCTION
+           || $feature == MTN_SELECTOR_NOT_FUNCTION)
+    {
+
+        # These are only available from version 1.10 (i/f version 13.1).
+
+        return 1 if ($this->{mtn_aif_version} >= 13.1);
+
+    }
     else
     {
         &$croaker("Unknown feature requested");
@@ -5698,7 +5766,7 @@ sub startup($)
         if (! $startup)
         {
             if ($self->interface_version(\$version)
-                && $version =~ m/^(\d+)\.(\d+)$/)
+                && $version =~ m/^(\d+\.\d+)$/)
             {
                 $this->{mtn_aif_version} = $1;
 
