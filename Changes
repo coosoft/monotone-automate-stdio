@@ -1,5 +1,15 @@
 Revision history for Perl extension Monotone::AutomateStdio.
 
+1.10  Sat Apr 30 17:08:00 2016 Anthony Cooper <support@coosoft.plus.com>
+	- Changes made for Monotone version 1.10:
+	  - Added an erase_descendants() method.
+	  - The get_attributes() method now accepts an additional revision id
+	    when working outside of a workspace.
+	  - Updated documentation.
+	- The mtn_aif_version field inside the Monotone object now contains the
+	  full floating point version number of the automate stdio interface
+	  version.
+
 1.03  Sat Sep 07 18:58:00 2013 Anthony Cooper <support@coosoft.plus.com>
 	- Only prepend the database name with its full path when dealing with a
 	  disk based database and not a memory based one as used when
