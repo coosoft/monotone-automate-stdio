@@ -200,6 +200,14 @@ my @test_list =
                "110816e646d42ca45e8205778255cece9c8f2159",
                "95c9125530ea297d244b522426997942635d3891"]},
 
+     {fn   => \&Monotone::AutomateStdio::erase_descendants,
+      desc => "erase_descendants",
+      feat => MTN_ERASE_DESCENDANTS,
+      type => LIST,
+      args => ["b9a5862a8ba577538f27c69656d8a6bb60ecb777",
+               "5fee1e9c463d3cd7439bea9c483d9d88d0b057d5",
+               "ee9d2b736adc24fb9a5926f68304814e93ee8726"]},
+
      {fn   => \&Monotone::AutomateStdio::file_merge,
       desc => "file_merge (on a mergeable conflict)",
       feat => MTN_FILE_MERGE,
@@ -239,6 +247,13 @@ my @test_list =
       feat => MTN_DROP_DB_VARIABLES,
       type => RECORD_LIST,
       args => ["snowdonia.xcf"]},
+
+     {fn   => \&Monotone::AutomateStdio::get_attributes,
+      desc => "get_attributes (on a file that has a few - older revision)",
+      feat => MTN_GET_ATTRIBUTES_TAKING_OPTIONS,
+      type => RECORD_LIST,
+      args => ["snowdonia.xcf",
+               "b9a5862a8ba577538f27c69656d8a6bb60ecb777"]},
 
      {fn   => \&Monotone::AutomateStdio::get_base_revision_id,
       desc => "get_base_revision_id",
@@ -863,6 +878,9 @@ else
 }
 die("Your test database will sync to `" . $data . "' - this is unsafe")
     if (defined($data));
+
+# Please note that when opening a database we need to use the --key option as
+# additional private keys are added during testing.
 
 # Clear out any error state created from the above tests.
 
